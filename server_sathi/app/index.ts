@@ -1,11 +1,11 @@
+import "dotenv/config"
 import express from "express";
-import {config} from "dotenv";
 import routes from "./routes/index.js"
 import { callbackUrl } from "./service/googleMail.js";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 
-config();
 
 const app = express();
 const port = 5000;
@@ -17,6 +17,8 @@ app.use(cors({
     methods: ["GET", "PUT", "POST", "PATCH", "DELETE"],
     credentials: true
 }));
+
+app.use(cookieParser(process.env.SECRET_KEY))
 
 app.use(helmet());
 app.use("/app", routes);

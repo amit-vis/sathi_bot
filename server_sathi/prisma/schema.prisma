@@ -4,10 +4,245 @@
 // Get a free hosted Postgres database in seconds: `npx create-db`
 
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
+
 }
 
 datasource db {
   provider = "postgresql"
+  
+}
+
+// ---------- ENUMS ----------------------------------------------------
+enum DocumentType {
+  invoice
+  bill
+  purchase_order
+  sales_order
+  quotation
+  payment
+  expense
+  receipt
+  credit_note
+  debit_note
+  other
+}
+
+enum CurrencyCode {
+  INR
+  USD
+  EUR
+  GBP
+  AED
+  OTHER
+}
+
+enum PartyKind {
+  issuing_company
+  counterparty
+  additional
+}
+
+// ---------- USER (parent table) --------------------------------------
+model User {
+  id                    String     @id @default(uuid()) @db.Uuid
+  
+  userEmail             String?    @unique @map("user_email")
+  userMobileNumber      String?    @unique @map("user_mobile_number")
+  
+  otpCode               String?    @map("otp_code")
+  otpExpiresAt          DateTime?  @map("otp_expires_at")
+  isEmailVerified       Boolean    @default(false) @map("is_email_verified")
+  isMobileVerified      Boolean    @default(false) @map("is_mobile_verified")
+  
+  gmailAccessToken      String?    @map("gmail_access_token")
+  gmailExpiryTimestamp  DateTime?  @map("gmail_expiry_timestamp")
+  gmailRefreshToken     String?    @map("gmail_refresh_token")
+  hotmailAccessToken    String?    @map("hotmail_access_token")
+  hotmailRefreshToken   String?    @map("hotmail_refresh_token")
+  hotExpiryTimestamp    DateTime?  @map("hot_expiry_timestamp")
+  
+  userName              String?  @map("user_name")
+  organizationName      String?  @map("organization_name")
+  
+  lastLoginAt           DateTime? @map("last_login_at")
+
+  isBlocked             Boolean   @default(false) @map("is_blocked")
+  blockTimestamp        DateTime? @map("block_timestamp")
+  isDelete              Boolean   @default(false) @map("is_delete")
+  deleteTimeStamp       DateTime? @map("delete_timestamp")
+  gmailLabels           String[]  @map("gmail_labels")
+  gmailLabelsIds        String[]  @map("gmail_labels_ids")
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  documents             Document[]
+  refrestoken           RefreshToken[]
+  
+  @@map("users")
+}
+
+// ---------- DOCUMENT (core) ------------------------------------------
+model Document {
+  id                  String        @id @default(uuid()) @db.Uuid
+
+  // FK -> User
+  userId              String        @map("user_id") @db.Uuid
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  documentType        DocumentType? @map("document_type")
+  documentNumber      String?       @map("document_number")
+
+  // dates: raw (as printed) + parsed (for sorting/filtering)
+  documentDateRaw     String?       @map("document_date_raw")
+  documentDate        DateTime?     @map("document_date")     @db.Date
+  dueDateRaw          String?       @map("due_date_raw")
+  dueDate             DateTime?     @map("due_date")          @db.Date
+  expiryDateRaw       String?       @map("expiry_date_raw")
+  expiryDate          DateTime?     @map("expiry_date")       @db.Date
+
+  currency            CurrencyCode?
+  subject             String?
+  paymentTerms        String?       @map("payment_terms")
+
+  // totals (1:1, flattened)
+  subtotal            Decimal?      @db.Decimal(18, 2)
+  taxTotal            Decimal?      @map("tax_total")     @db.Decimal(18, 2)
+  grandTotal          Decimal?      @map("grand_total")   @db.Decimal(18, 2)
+  balanceDue          Decimal?      @map("balance_due")   @db.Decimal(18, 2)
+  amountPaid          Decimal?      @map("amount_paid")   @db.Decimal(18, 2)
+  amountInWords       String?       @map("amount_in_words")
+
+  // payment_info (1:1, mostly null)
+  paymentMode         String?       @map("payment_mode")
+  paidThrough         String?       @map("paid_through")
+  expenseAccount      String?       @map("expense_account")
+
+  notes               String?
+  termsAndConditions  String?       @map("terms_and_conditions")
+  additionalData      Json?         @map("additional_data")
+
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @updatedAt      @map("updated_at") @db.Timestamptz(6)
+
+  parties             DocumentParty[]
+  items               DocumentItem[]
+  taxes               DocumentTax[]
+  linkedDocuments     LinkedDocument[]
+
+  @@unique([documentType, documentNumber])
+  @@index([userId])
+  @@index([documentType])
+  @@index([documentDate])
+  @@index([documentNumber])
+  @@map("documents")
+}
+
+// ---------- DOCUMENT PARTIES -----------------------------------------
+// issuing_company + counterparty + additional_parties, all in one table
+model DocumentParty {
+  id          String    @id @default(uuid()) @db.Uuid
+  documentId  String    @map("document_id") @db.Uuid
+  document    Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  partyKind   PartyKind @map("party_kind")
+  role        String?
+  name        String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  pincode     String?
+  taxId       String?   @map("tax_id")
+  companyId   String?   @map("company_id")
+  phone       String[]
+  email       String[]
+
+  @@index([documentId])
+  @@index([name])
+  @@map("document_parties")
+}
+
+// ---------- DOCUMENT ITEMS -------------------------------------------
+model DocumentItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  lineNo      Int?     @map("line_no")
+  slNo        Int?     @map("sl_no")
+  description String?
+  hsnSac      String?  @map("hsn_sac")
+  quantity    Decimal? @db.Decimal(18, 4)
+  unit        String?
+  rate        Decimal? @db.Decimal(18, 4)
+  taxPercent  Decimal? @map("tax_percent") @db.Decimal(6, 2)
+  taxAmount   Decimal? @map("tax_amount")  @db.Decimal(18, 2)
+  amount      Decimal? @db.Decimal(18, 2)
+
+  @@index([documentId])
+  @@map("document_items")
+}
+
+// ---------- DOCUMENT TAXES -------------------------------------------
+model DocumentTax {
+  id            String   @id @default(uuid()) @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  taxType       String?  @map("tax_type")
+  ratePercent   Decimal? @map("rate_percent")   @db.Decimal(6, 2)
+  taxableAmount Decimal? @map("taxable_amount") @db.Decimal(18, 2)
+  amount        Decimal? @db.Decimal(18, 2)
+  currency      String?
+
+  @@index([documentId])
+  @@map("document_taxes")
+}
+
+// ---------- LINKED DOCUMENTS -----------------------------------------
+model LinkedDocument {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentId  String   @map("document_id") @db.Uuid
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  type        String?
+  number      String?
+  dateRaw     String?  @map("date_raw")
+  amount      Decimal? @db.Decimal(18, 2)
+
+  @@index([documentId])
+  @@index([number])
+  @@map("linked_documents")
+}
+
+model reserachData {
+  id                  String        @id @default(uuid()) @db.Uuid
+   // extraction meta
+  confidenceScore     Decimal?      @map("confidence_score")     @db.Decimal(5, 2)
+  completenessPercent Decimal?      @map("completeness_percent") @db.Decimal(5, 2)
+  inputTokens         Int?          @map("input_tokens")
+  outputTokens        Int?          @map("output_tokens")
+  totalTokens         Int?          @map("total_tokens")
+  extractedAt         DateTime?     @map("extracted_at") @db.Timestamptz(6)
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  familyId   String    @map("family_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  used       Boolean   @default(false)
+  revoked    Boolean   @default(false)
+  usedAt     DateTime? @map("used_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent")
+  ip         String?   @db.Inet
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
 }
