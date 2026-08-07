@@ -1,35 +1,35 @@
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
-  port: 587,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER!,
-    pass: process.env.PASSKEY!,
-  },
+    service: 'gmail',
+    host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
+    port: 587,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER!,
+        pass: process.env.PASSKEY!,
+    },
 });
 
 
 const sendMail = async (from: string, to: string, subject: string, text: string, html: string) => {
-  const mailOptions = {
-    from,
-    to,
-    subject,
-    text,
-    html,
-  };
+    const mailOptions = {
+        from,
+        to,
+        subject,
+        text,
+        html,
+    };
 
-  try {
-    await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully');
-  } catch (error) {
-    console.error('Error sending email:', error);
-  }
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully');
+    } catch (error) {
+        console.error('Error sending email:', error);
+    }
 };
 
-const sendOTPResponse = async (to: string, otp:string) => {
+const sendOTPResponse = async (to: string, otp: string) => {
     try {
         const subject = "Your Verification Code for Sathi"
         const htmlContent = `
@@ -98,17 +98,17 @@ const sendOTPResponse = async (to: string, otp:string) => {
 </body>
 </html>
         `
- 
+
         await sendMail(process.env.EMAIL_USER!, to, subject, "", htmlContent);
     } catch (error) {
         console.error('Error sending query response email:', error);
     }
 }
 
-const onboardMail = async ( to: string) => {
-  try {
-    const subject = `Welcome to Sathi! Your account has been successfully created 🎉`;
-    const htmlContent = `<!DOCTYPE html>
+const onboardMail = async (to: string) => {
+    try {
+        const subject = `Welcome to Sathi! Your account has been successfully created 🎉`;
+        const htmlContent = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
@@ -179,10 +179,10 @@ const onboardMail = async ( to: string) => {
     </table>
 </body>
 </html>`;
-    await sendMail(process.env.EMAIL_USER!, to, subject, "", htmlContent);
-  } catch (error) {
-    console.error('Error sending acknowledgment email:', error);
-  }
+        await sendMail(process.env.EMAIL_USER!, to, subject, "", htmlContent);
+    } catch (error) {
+        console.error('Error sending acknowledgment email:', error);
+    }
 }
 
 export { sendOTPResponse, onboardMail };

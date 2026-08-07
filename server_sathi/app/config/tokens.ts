@@ -3,7 +3,7 @@ import crypto from "crypto";
 import type { CookieOptions } from "express";
 
 
-export const signAccessToken = (user: any)=>{
+export const signAccessToken = (user: any) => {
     return jwt.sign(
         {},
         process.env.JWTAccessTokenSecret!,
@@ -14,22 +14,22 @@ export const signAccessToken = (user: any)=>{
     )
 }
 
-export const verifyAccessToken = (token: any)=>{
+export const verifyAccessToken = (token: any) => {
     return jwt.verify(token, process.env.JWTAccessTokenSecret!)
 }
 
-export const hashToken = (raw: any)=>{
+export const hashToken = (raw: any) => {
     return crypto.createHash("sha256").update(raw).digest("hex");
 
 }
 
-export const createRefreshToken = ()=>{
+export const createRefreshToken = () => {
     const raw = crypto.randomBytes(32).toString("base64url");
-    return {raw, hash: hashToken(raw)}
+    return { raw, hash: hashToken(raw) }
 }
 
-export const refreshExpiry = ()=>{
-    return new Date(Date.now() + 7*86_400_000)
+export const refreshExpiry = () => {
+    return new Date(Date.now() + 7 * 86_400_000)
 }
 
 export const REFRESH_COOKIE = "rt";
@@ -37,12 +37,12 @@ export const REFRESH_COOKIE = "rt";
 export const refreshCookieOptions: CookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production'? 'strict': 'lax',
-    maxAge: 7*86_400_000
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    maxAge: 7 * 86_400_000
 }
 
 export const clearCookieOptions: CookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production'? 'strict': 'lax'
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
 }

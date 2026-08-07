@@ -1,10 +1,10 @@
 import rateLimit from "express-rate-limit";
-import {RedisStore} from "rate-limit-redis"
+import { RedisStore } from "rate-limit-redis"
 import { redisClient } from "../service/queue/gmailQueueExtracter.js";
 
-const store = (prefix: any)=> new RedisStore({
-    sendCommand: (...args) => redisClient.sendCommand(args),
-    prefix
+const store = (prefix: any) => new RedisStore({
+  sendCommand: (...args) => redisClient.sendCommand(args),
+  prefix
 })
 
 export const loginLimiter = rateLimit({
@@ -22,7 +22,7 @@ export const loginLimiter = rateLimit({
 export const otpPerPhone = rateLimit({
   windowMs: 60 * 60_000,
   limit: 5,
-  keyGenerator: (req) => req.body?.phone ?? req.body?.email?.toLowerCase() ??'',
+  keyGenerator: (req) => req.body?.phone ?? req.body?.email?.toLowerCase() ?? '',
   store: store('rl:otp:phone:'),
 });
 
@@ -37,6 +37,6 @@ export const otpPerIp = rateLimit({
 export const otpVerify = rateLimit({
   windowMs: 15 * 60_000,
   limit: 10,
-  keyGenerator: (req) => req.body?.phone ?? req.body?.email?.toLowerCase() ??'',
+  keyGenerator: (req) => req.body?.phone ?? req.body?.email?.toLowerCase() ?? '',
   store: store('rl:otp:verify:'),
 });

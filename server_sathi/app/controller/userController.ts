@@ -5,7 +5,7 @@ import { issueTokens } from "./refresherController.js";
 import { clearCookieOptions, hashToken, REFRESH_COOKIE } from "../config/tokens.js";
 import { findHash, listSessions, revokeAllForUser, revokeFamily } from "../model/refreshToken.js";
 import { sendOTPackGmailQueue } from "../service/queue/gmailQueue.js";
-import { sendOTP } from "../config/userHelper.js";
+import { sendOTP } from "../config/helperfunction/userHelper.js";
 import { mailaccesRealTime } from "../service/googleMail.js";
 import crypto from "crypto";
 
@@ -40,10 +40,10 @@ export const createController = async (req: any, res: any) => {
     }
 }
 
-export const sendOtpTouser = async (req: any, res: any)=>{
+export const sendOtpTouser = async (req: any, res: any) => {
     try {
-        const {identifier} = req.body;
-        if(!identifier){
+        const { identifier } = req.body;
+        if (!identifier) {
             return res.status(401).json({
                 success: false,
                 message: "gmail or phone number required"
@@ -51,7 +51,7 @@ export const sendOtpTouser = async (req: any, res: any)=>{
         }
 
         const checkUser = await getUserByMail(identifier);
-        if(!checkUser){
+        if (!checkUser) {
             return res.status(402).json({
                 message: "User does not exist!",
                 success: false
@@ -62,27 +62,27 @@ export const sendOtpTouser = async (req: any, res: any)=>{
         const encryptedOTp = await bcrypt.hashSync(otp, 10);
         const futeureMinute = 10 * 60 * 1000
         const otpExpireTimestamp = new Date(Date.now() + futeureMinute);
-        await updatOTP(identifier,{
-             otpCode: encryptedOTp || null,
+        await updatOTP(identifier, {
+            otpCode: encryptedOTp || null,
             otpExpiresAt: otpExpireTimestamp || null
         })
 
         await sendOTPackGmailQueue.add("otp-sent", {
-                type: "otp",
-                to: checkUser?.userEmail,
-                otp: otp
-            }, {
-                priority: 1
-            })
+            type: "otp",
+            to: checkUser?.userEmail,
+            otp: otp
+        }, {
+            priority: 1
+        })
 
-      
+
         return res.json({
             message: "OTP has been sent to your mail",
-         
+
             user: checkUser
         })
-        
-        
+
+
     } catch (error: any) {
         return res.status(500).json({
             message: "error in signin",
@@ -91,11 +91,11 @@ export const sendOtpTouser = async (req: any, res: any)=>{
     }
 }
 
-export const veriFyOTP = async (req: any, res: any)=>{
+export const veriFyOTP = async (req: any, res: any) => {
     try {
-        const {identifier} = req.params;
-        const {otp} = req.body;
-        if(!identifier){
+        const { identifier } = req.params;
+        const { otp } = req.body;
+        if (!identifier) {
             return res.status(400).json({
                 message: "required phone or email id",
                 success: false
@@ -103,7 +103,7 @@ export const veriFyOTP = async (req: any, res: any)=>{
         }
 
         const existingUser = await getUserByMail(identifier);
-        if(!existingUser){
+        if (!existingUser) {
             return res.status(401).json({
                 message: "user does not exist",
                 success: false
@@ -111,22 +111,22 @@ export const veriFyOTP = async (req: any, res: any)=>{
         }
         const currentTimestamp = new Date();
         const existingOTimestamp = new Date(existingUser.otpExpiresAt!)
-        if(currentTimestamp>existingOTimestamp){
+        if (currentTimestamp > existingOTimestamp) {
             return res.status(402).json({
                 message: "OTP is already Expire",
                 success: false
             })
         }
-    
+
         const compareOtp = await bcrypt.compare(otp, existingUser.otpCode!);
-        if(!compareOtp){
+        if (!compareOtp) {
             return res.status(403).json({
                 message: "wrong OTP Entred",
                 success: false
             })
         }
 
-        
+
         const accessToken = await issueTokens(res, existingUser, crypto.randomUUID(), req);
         await deleteOTP(existingUser.id);
         await mailaccesRealTime(existingUser.userEmail!)
@@ -137,23 +137,23 @@ export const veriFyOTP = async (req: any, res: any)=>{
         })
 
     } catch (error) {
-          console.error(error)
+        console.error(error)
         return res.status(500).json({
             message: "errorn in verify otp",
             success: false
         })
-      
+
     }
 }
-export const logout = async (req: any, res: any)=>{
+export const logout = async (req: any, res: any) => {
     try {
         const raw = req.cookies?.[REFRESH_COOKIE];
-        if(raw){
+        if (raw) {
             const known = await findHash(hashToken(raw));
-            if(known) await revokeFamily(known.familyId, known.userId)
+            if (known) await revokeFamily(known.familyId, known.userId)
         }
-    res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
-    res.sendStatus(204)
+        res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
+        res.sendStatus(204)
     } catch (error: any) {
         return res.status(500).json({
             message: "error in logout",
@@ -162,7 +162,7 @@ export const logout = async (req: any, res: any)=>{
     }
 }
 
-export const logoutAll = async (req: any, res: any)=>{
+export const logoutAll = async (req: any, res: any) => {
     try {
         await revokeAllForUser(req.user.id);
         res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
@@ -175,7 +175,7 @@ export const logoutAll = async (req: any, res: any)=>{
     }
 }
 
-export const sessions = async (req: any, res: any)=>{
+export const sessions = async (req: any, res: any) => {
     try {
         return res.json({
             sessions: await listSessions(req.user.id)
@@ -188,22 +188,22 @@ export const sessions = async (req: any, res: any)=>{
     }
 }
 
-export const deleteSession = async (req: any, res: any)=>{
+export const deleteSession = async (req: any, res: any) => {
     try {
         const owned = await listSessions(req.user.id);
-        if(!owned?.some((s)=>s.familyId === req.params.familyId)){
+        if (!owned?.some((s) => s.familyId === req.params.familyId)) {
             return res.status(404).json({
                 error: "SESSION_NOT_FOUND"
             })
         }
         await revokeFamily(req.params.familyId, req.user.id);
         const raw = req.cookies?.[REFRESH_COOKIE];
-    if (raw) {
-      const current = await findHash(hashToken(raw));
-      if (current?.familyId === req.params.familyId) {
-        res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
-      }
-    }
+        if (raw) {
+            const current = await findHash(hashToken(raw));
+            if (current?.familyId === req.params.familyId) {
+                res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
+            }
+        }
         res.sendStatus(204)
     } catch (error: any) {
         return res.status(500).json({

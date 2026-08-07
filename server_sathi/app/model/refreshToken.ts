@@ -1,55 +1,55 @@
 import { Prisma } from "@prisma/client";
-import prisma from "../config/db.js";
+import {prisma} from "../config/db.js";
 
-export const insertRefreshToken = async (refreshData: any)=>{
+export const insertRefreshToken = async (refreshData: any) => {
 
-        const refreshToken = await prisma.refreshToken.create({
-            data: {
-                tokenHash: refreshData.tokenHash,
-                familyId: refreshData.familyId,
-                userId: refreshData.userId,
-                expiresAt: refreshData.expiresAt,
-                userAgent: refreshData.userAgent || null,
-                ip: refreshData.ip || null
-            }
-        });
-        return refreshToken
-  
+    const refreshToken = await prisma.refreshToken.create({
+        data: {
+            tokenHash: refreshData.tokenHash,
+            familyId: refreshData.familyId,
+            userId: refreshData.userId,
+            expiresAt: refreshData.expiresAt,
+            userAgent: refreshData.userAgent || null,
+            ip: refreshData.ip || null
+        }
+    });
+    return refreshToken
+
 }
 
 export const consumeRefreshToken = async (tokenHash: string) => {
-  try {
-    return await prisma.refreshToken.update({
-      where: {
-        tokenHash,                    // schema mein @unique hona zaroori
-        used: false,
-        revoked: false,
-        expiresAt: { gt: new Date() },
-      },
-      data: {
-        used: true,
-        usedAt: new Date(),
-      },
-      select: { id: true, familyId: true, userId: true },  // = RETURNING
-    });
-  } catch (err: any) {
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === "P2025"
-    ) {
-      return null;   // rows[0] ?? null ka equivalent
+    try {
+        return await prisma.refreshToken.update({
+            where: {
+                tokenHash,                    // schema mein @unique hona zaroori
+                used: false,
+                revoked: false,
+                expiresAt: { gt: new Date() },
+            },
+            data: {
+                used: true,
+                usedAt: new Date(),
+            },
+            select: { id: true, familyId: true, userId: true },  // = RETURNING
+        });
+    } catch (err: any) {
+        if (
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === "P2025"
+        ) {
+            return null;   // rows[0] ?? null ka equivalent
+        }
+        throw err;       // real DB errors upar jaane do
     }
-    throw err;       // real DB errors upar jaane do
-  }
 };
 
-export const findHash = async (hash: any)=>{
+export const findHash = async (hash: any) => {
     try {
         const finddata = await prisma.refreshToken.findUnique({
-            where:{
+            where: {
                 tokenHash: hash
             },
-            select:{
+            select: {
                 id: true,
                 familyId: true,
                 userId: true,
@@ -64,15 +64,15 @@ export const findHash = async (hash: any)=>{
     }
 }
 
-export const revokeFamily = async (familyId: string, userId: string)=>{
+export const revokeFamily = async (familyId: string, userId: string) => {
     try {
         const familyData = await prisma.refreshToken.updateMany({
-            where:{
+            where: {
                 familyId: familyId,
                 userId,
                 revoked: false
             },
-            data:{
+            data: {
                 revoked: true
             }
         });
@@ -82,14 +82,14 @@ export const revokeFamily = async (familyId: string, userId: string)=>{
     }
 }
 
-export const revokeAllForUser = async (userId: any)=>{
+export const revokeAllForUser = async (userId: any) => {
     try {
         const revokeUserData = await prisma.refreshToken.updateMany({
-            where:{
+            where: {
                 userId: userId,
                 revoked: false
             },
-            data:{
+            data: {
                 revoked: true
             }
         });
@@ -99,20 +99,20 @@ export const revokeAllForUser = async (userId: any)=>{
     }
 }
 
-export const listSessions = async (userId: any)=>{
+export const listSessions = async (userId: any) => {
     try {
         const sessionData = await prisma.refreshToken.findMany({
-            where:{
+            where: {
                 userId: userId,
                 revoked: false,
-                expiresAt: {gt: new Date()}
+                expiresAt: { gt: new Date() }
             },
-            distinct:["familyId"],
-            orderBy:[
-                {familyId: "asc"},
-                {createdAt: "desc"}
+            distinct: ["familyId"],
+            orderBy: [
+                { familyId: "asc" },
+                { createdAt: "desc" }
             ],
-            select:{
+            select: {
                 familyId: true,
                 userAgent: true,
                 ip: true,
@@ -125,12 +125,12 @@ export const listSessions = async (userId: any)=>{
     }
 }
 
-export const deletExpired = async ()=>{
-      const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+export const deletExpired = async () => {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const rowCount = await prisma.refreshToken.deleteMany({
-        where:{
-            expiresAt:{lt: cutoff}
+        where: {
+            expiresAt: { lt: cutoff }
         }
     });
     return rowCount

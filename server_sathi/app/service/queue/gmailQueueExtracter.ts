@@ -1,8 +1,10 @@
-import {Queue, Worker, Job} from "bullmq";
-import {createClient} from "redis";
+import { Queue, Worker, Job } from "bullmq";
+import { createClient } from "redis";
 import { generateNewAccessToken, getAllUnreadMessages, getMessageMeta, getmessages, markAsbotBlocked, markAsProcessed } from "../googleMail.js";
-import { chunkArray, filterMail } from "../../config/helper.js";
-import {checkVerdict, extracter} from "../genAi.js"
+import { chunkArray, filterMail } from "../../config/helperfunction/helper.js";
+import { checkVerdict, extracter } from "../genAi.js"
+import { upsertDocument } from "../../model/document.js";
+import { createResearch } from "../../model/researchData.js";
 
 export const redisConfig: any = {
     host: "localhost",
@@ -11,66 +13,80 @@ export const redisConfig: any = {
 
 export const gemailQueue = new Queue("extracted_data", {
     connection: redisConfig,
-    defaultJobOptions:{
+    defaultJobOptions: {
         attempts: 3,
-        backoff:{
+        backoff: {
             type: "exponential",
             delay: 5000
         },
-        removeOnComplete: {age: 2592000 },
+        removeOnComplete: { age: 2592000 },
         removeOnFail: false
     }
 });
 
 
 
-new Worker("extracted_data", async (job: any)=>{
+new Worker("extracted_data", async (job: any) => {
 
     const accessToekn = await generateNewAccessToken(job?.data.emailAddress) as any;
     if (!accessToekn) {
-    console.error(`No valid token for ${job?.data.emailAddress} — skipping, needs re-auth`);
-    return;   // job gracefully khatam, crash nahi
-}
+        console.error(`No valid token for ${job?.data.emailAddress} — skipping, needs re-auth`);
+        return;   // job gracefully khatam, crash nahi
+    }
     const messages = await getAllUnreadMessages(accessToekn);
-    if(!messages?.length) return;
+    if (!messages?.length) return;
 
-    const metas: any[]=[]
+    const metas: any[] = []
 
-    for(const message of chunkArray(messages, 10)){
+    for (const message of chunkArray(messages, 10)) {
         const results = await Promise.allSettled(
-            message.map((m:any)=> getMessageMeta(accessToekn, m?.id))
+            message.map((m: any) => getMessageMeta(accessToekn, m?.id))
         );
-        for(const r of results){
-            if(r.status === "fulfilled" && r.value){
+        for (const r of results) {
+            if (r.status === "fulfilled" && r.value) {
                 metas.push(r.value)
             }
         }
     }
 
-    const {allowed, blocked} = filterMail(metas);
+    const { allowed, blocked } = filterMail(metas);
     console.log(` ${metas.length} → ${allowed.length} bache, ${blocked.length} block`);
-    if(blocked?.length>0){
-        const ids = blocked.map(b => b.mail.messageId); 
-        await markAsbotBlocked(accessToekn, ids,job.data.emailAddress)
+    if (blocked?.length > 0) {
+        const ids = blocked.map(b => b.mail.messageId);
+        await markAsbotBlocked(accessToekn, ids, job.data.emailAddress)
 
     }
-    
 
-    for(const meta of allowed){
-         if (!meta?.messageId) {
-        console.warn(" Skipping — no messageId:", meta);
-        continue;
-    }
+
+    for (const meta of allowed) {
+        if (!meta?.messageId) {
+            console.warn(" Skipping — no messageId:", meta);
+            continue;
+        }
         try {
-            const mail = await getmessages(accessToekn, meta?.messageId,{
+            const mail = await getmessages(accessToekn, meta?.messageId, {
                 includeAttachments: true,
-                maxFileSize: 10*1024*1024
+                maxFileSize: 10 * 1024 * 1024
             });
-            if(!mail) continue;
+            if (!mail) continue;
 
             const verdict = await checkVerdict(mail);
-        console.log(` LLM blocked: ${verdict?.data?.type} - ${verdict?.data?.confidence_score}-${verdict?.data?.isBusiness}`, verdict?._meta);
-            if(!verdict?.data?.isBusiness){
+            console.log(` LLM blocked: ${verdict?.data?.type} - ${verdict?.data?.confidence_score}-${verdict?.data?.isBusiness}`, verdict?._meta);
+            await createResearch({
+                messageId: mail?.messageId,
+                operation: "verdict",
+                model: process.env.MODEL!,
+                tokenUsage: verdict?._meta?.token_usage ?? {},
+                extractedAt: verdict?._meta?.extracted_at ?? null,
+                children:[
+                    {
+                        documentType: verdict?._meta?.document_type ?? null,
+                        confidence: verdict?.data?.confidence_score ?? null,
+                        completeness: verdict?._meta?.completeness_percent ?? null
+                    }
+                ]
+            })
+            if (!verdict?.data?.isBusiness) {
                 console.log(` LLM blocked: ${mail.subject}`);
                 await markAsbotBlocked(accessToekn, [mail?.messageId], job?.data.emailAddress);
                 continue
@@ -78,17 +94,34 @@ new Worker("extracted_data", async (job: any)=>{
 
             console.log(` LLM blocked: ${verdict.data.type} - ${verdict.data.confidence_score}-${verdict.data.isBusiness}`, verdict._meta);
 
-            const data = await extracter(mail, verdict.data.type);
-            console.log("here is the extarcted Data", data);
+            const data = await extracter(mail);
+            console.log("here is the extracted data", data)
+            const docs = data?.data?.documents ?? [];
+            for (let i = 0; i < docs.length; i++) {
+                await upsertDocument(job.data.userId, docs[i], mail.messageId, i);   // 👈 i pass
+            }
 
-            await markAsProcessed(accessToekn, mail?.messageId,job?.data.emailAddress)
+            await createResearch({
+                messageId: mail.messageId,
+                operation:"extraction",
+                model: process.env.MODEL!,
+                tokenUsage: data?._meta?.token_usage ?? {},
+                extractedAt: data?._meta?.extracted_at ?? null,
+                children: (data?._meta?.documentDetails ?? []).map((d: any)=>({
+                    documentType: d.document_type,
+                    confidence: d.confidence,
+                    completeness: d.completeness,
+                }))
+            })
+
+            await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress);
         } catch (error: any) {
             console.error("here is the error", error?.message)
         }
     }
 
 
-},{
+}, {
     connection: redisConfig
 })
 

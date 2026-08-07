@@ -13,7 +13,9 @@ const port = 5000;
 app.use(express.json());
 app.use(express.urlencoded({extended: true}))
 app.use(cors({
-    origin:["https://annmarie-nonextractable-mathematically.ngrok-free.dev", "http://localhost:3000"],
+    origin:["https://annmarie-nonextractable-mathematically.ngrok-free.dev", 
+        "http://localhost:3000",
+        "https://rewrite-skeleton-petri.ngrok-free.dev"],
     methods: ["GET", "PUT", "POST", "PATCH", "DELETE"],
     credentials: true
 }));

@@ -1,8 +1,8 @@
 import axios from "axios";
-import { CLASSIFY_HEADERS } from "../config/helper.js"
+import { CLASSIFY_HEADERS } from "../config/helperfunction/helper.js"
 import { gemailQueue } from "./queue/gmailQueueExtracter.js"
 import { createUser, getUserByMail, updatOTP, updatTokens } from "../model/user.js";
-import { decryptionToken, encryptToken, sendOTP } from "../config/userHelper.js";
+import { decryptionToken, encryptToken, sendOTP } from "../config/helperfunction/userHelper.js";
 import { sendOTPackGmailQueue } from "./queue/gmailQueue.js";
 import bcrypt from "bcryptjs";
 
@@ -138,15 +138,15 @@ export const callbackUrl = async (req: any, res: any) => {
             if (user) {
                 user = await updatTokens(UserInfo?.email,
                     {
-                        gmailAccessToken: encryptedAccessToken,
-                        gmailRefreshToken: encryptedRefrshToken,
-                        gmailExpiryTimestamp: expiresAt,
-                       
+                        AccessToken: encryptedAccessToken,
+                        mailRefreshToken: encryptedRefrshToken,
+                        ExpiryTimestamp: expiresAt,
+
                     }
                 )
 
                 await updatOTP(UserInfo?.email, {
-                     otpCode: encryptOTP || null,
+                    otpCode: encryptOTP || null,
                     otpExpiresAt: otpExpireTimestamp || null
                 })
             } else {
@@ -157,11 +157,11 @@ export const callbackUrl = async (req: any, res: any) => {
                 user = await createUser({
                     userEmail: UserInfo?.email,
                     userName: UserInfo?.name,
-                    gmailAccessToken: encryptedAccessToken,
-                    gmailRefreshToken: encryptedRefrshToken,
-                    gmailLabels: lablesName,
-                    gmailLabelsIds: labelsId,
-                    gmailExpiryTimestamp: expiresAt,
+                    AccessToken: encryptedAccessToken,
+                    RefreshToken: encryptedRefrshToken,
+                    Labels: lablesName,
+                    LabelsIds: labelsId,
+                    ExpiryTimestamp: expiresAt,
                     otpCode: encryptOTP || null,
                     otpExpiresAt: otpExpireTimestamp || null
                 });
@@ -187,7 +187,7 @@ export const callbackUrl = async (req: any, res: any) => {
             console.error("Failed to fetch user info:", error);
             return res.status(500).json({ error: "Failed to fetch user information" });
         }
-        return res.redirect(`/dashboard?userId=${user?.id}&email=${encodeURIComponent(
+        return res.redirect(`${process.env.FRONTEND_URL}/dashboard?userId=${user?.id}&email=${encodeURIComponent(
             UserInfo?.email
         )}&provider=gmail&success=true`)
     } catch (error) {
@@ -201,22 +201,22 @@ export const generateNewAccessToken = async (userMail: string) => {
         const currentTimeStamp = Date.now() + BUFFER_MS;
         const record = await getUserByMail(userMail.trim().toLowerCase());
         console.log("lookup:", userMail, "→", record ? record.userEmail : "NOT FOUND");
-if (!record) return null;
+        if (!record) return null;
 
         // access token abhi valid hai
-        if (record.gmailAccessToken &&
-            record.gmailExpiryTimestamp &&
-            record.gmailExpiryTimestamp.getTime() > currentTimeStamp) {
-            return decryptionToken(record.gmailAccessToken);
+        if (record.AccessToken &&
+            record.ExpiryTimestamp &&
+            record.ExpiryTimestamp.getTime() > currentTimeStamp) {
+            return decryptionToken(record.AccessToken);
         }
 
         // refresh chahiye — pehle guard
-        if (!record.gmailRefreshToken) {
+        if (!record.mailRefreshToken) {
             console.error(`No refresh token for ${userMail} — re-authorize needed`);
             return null;
         }
 
-        const refreshToken = decryptionToken(record.gmailRefreshToken);
+        const refreshToken = decryptionToken(record?.mailRefreshToken);
         const response = await axios.post('https://oauth2.googleapis.com/token', {
             client_id: process.env.GMAIL_CLIENT_ID,
             client_secret: process.env.GMAIL_CLIENT_SECRET,
@@ -229,11 +229,11 @@ if (!record) return null;
         const expiresAt = new Date(Date.now() + response.data.expires_in * 1000);
 
         const updateData: any = {
-            gmailAccessToken: encryptToken(newAccessToken),
-            gmailExpiryTimestamp: expiresAt,
+            AccessToken: encryptToken(newAccessToken),
+            ExpiryTimestamp: expiresAt,
         };
         if (response.data.refresh_token) {                       // ✅ mila tabhi
-            updateData.gmailRefreshToken = encryptToken(response.data.refresh_token);
+            updateData.mailRefreshToken = encryptToken(response.data.refresh_token);
         }
         await updatTokens(userMail, updateData);
 
@@ -314,10 +314,10 @@ export const markAsProcessed = async (
         }
 
         const getUser = await getUserByMail(userMail);
-        if(!getUser){
+        if (!getUser) {
             return false
         }
-        const lableId = getUser.gmailLabelsIds?.[0]
+        const lableId = getUser.LabelsIds?.[0]
 
         console.log(`🔄 Marking ${messageIds.length} messages as read...`);
 
@@ -371,10 +371,10 @@ export const markAsbotBlocked = async (
         }
 
         const getUser = await getUserByMail(userMail);
-        if(!getUser){
+        if (!getUser) {
             return false
         }
-        const lableId = getUser.gmailLabelsIds?.[1]
+        const lableId = getUser.LabelsIds?.[1]
 
         console.log(`🔄 Marking ${messageIds.length} messages as read...`);
 
@@ -536,13 +536,18 @@ export const getmessages = async (
     }
 };
 
+
+
 export const notification = async (req: any, res: any) => {
     try {
         console.log(`\n Notification received at: ${new Date().toLocaleTimeString()}`);
 
         const encodeddata = req.body.message.data;
         const decodedString = Buffer.from(encodeddata, 'base64').toString('utf-8');
-        const payload = JSON.parse(decodedString);
+        let payload = JSON.parse(decodedString);
+
+        const userData = await getUserByMail(payload?.emailAddress);
+        payload = {...payload, userId:userData?.id!}
 
         await gemailQueue.add("sync", payload, {
             jobId: `${payload.emailAddress}-${payload.historyId}`
@@ -587,7 +592,7 @@ export const mailaccesRealTime = async (userEmail: string) => {
 };
 
 export const getLabels = async (accessToken: any) => {
-  
+
     const response = await axios.get(`https://www.googleapis.com/gmail/v1/users/me/labels`, {
         headers: {
             "Authorization": `Bearer ${accessToken}`
@@ -638,32 +643,32 @@ export const getMessageMeta = async (accessToken: string,
     }
 }
 
-export const stopUserwatch = async (req:any, res:any)=>{
+export const stopUserwatch = async (req: any, res: any) => {
     try {
-        const {id} = req.query;
+        const { id } = req.query;
         const getUser = await getUserByMail(id);
-        if(!getUser){
+        if (!getUser) {
             return res.status(400).json({
                 message: "user does not exist",
                 success: false
             })
         }
         const acctessToken = await generateNewAccessToken(getUser.userEmail!);
-        if(!acctessToken){
+        if (!acctessToken) {
             return res.status(401).json({
                 message: "accessToken is not exist",
                 success: false
             })
         }
 
-        const response = await axios.post(`https://gmail.googleapis.com/gmail/v1/users/me/stop`,{},{
-            headers:{
+        const response = await axios.post(`https://gmail.googleapis.com/gmail/v1/users/me/stop`, {}, {
+            headers: {
                 "Authorization": `Bearer ${acctessToken}`,
                 "Content-Type": "application/json"
             }
         });
 
-        if(response.data.success){
+        if (response.data.success) {
             return res.status(200).json({
                 message: "User subscription stop successfully!",
                 success: true

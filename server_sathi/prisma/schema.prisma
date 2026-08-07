@@ -5,15 +5,17 @@
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 
 }
 
 datasource db {
   provider = "postgresql"
-  
 }
 
-// ---------- ENUMS ----------------------------------------------------
+// =====================================================================
+// ENUMS
+// =====================================================================
 enum DocumentType {
   invoice
   bill
@@ -55,12 +57,10 @@ model User {
   isEmailVerified       Boolean    @default(false) @map("is_email_verified")
   isMobileVerified      Boolean    @default(false) @map("is_mobile_verified")
   
-  gmailAccessToken      String?    @map("gmail_access_token")
-  gmailExpiryTimestamp  DateTime?  @map("gmail_expiry_timestamp")
-  gmailRefreshToken     String?    @map("gmail_refresh_token")
-  hotmailAccessToken    String?    @map("hotmail_access_token")
-  hotmailRefreshToken   String?    @map("hotmail_refresh_token")
-  hotExpiryTimestamp    DateTime?  @map("hot_expiry_timestamp")
+  AccessToken      String?    @map("access_token")
+  ExpiryTimestamp  DateTime?  @map("expiry_timestamp")
+  mailRefreshToken     String?    @map("refresh_token")
+
   
   userName              String?  @map("user_name")
   organizationName      String?  @map("organization_name")
@@ -71,8 +71,10 @@ model User {
   blockTimestamp        DateTime? @map("block_timestamp")
   isDelete              Boolean   @default(false) @map("is_delete")
   deleteTimeStamp       DateTime? @map("delete_timestamp")
-  gmailLabels           String[]  @map("gmail_labels")
-  gmailLabelsIds        String[]  @map("gmail_labels_ids")
+  Labels           String[]  @map("labels")
+  LabelsIds        String[]  @map("labels_ids")
+  msSubscriptionId   String?   @map("ms_subscription_id")
+
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   
@@ -82,13 +84,14 @@ model User {
   @@map("users")
 }
 
-// ---------- DOCUMENT (core) ------------------------------------------
 model Document {
   id                  String        @id @default(uuid()) @db.Uuid
 
   // FK -> User
   userId              String        @map("user_id") @db.Uuid
   user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId  String  @map("message_id")            // 👈 @unique HATAO
+  docIndex   Int     @default(0) @map("doc_index")
 
   documentType        DocumentType? @map("document_type")
   documentNumber      String?       @map("document_number")
@@ -102,15 +105,41 @@ model Document {
   expiryDate          DateTime?     @map("expiry_date")       @db.Date
 
   currency            CurrencyCode?
+  currencyRaw         String?       @map("currency_raw")      // real code when currency = OTHER
+  exchangeRate        Decimal?      @map("exchange_rate")     @db.Decimal(18, 6)
+
   subject             String?
   paymentTerms        String?       @map("payment_terms")
+  deliveryTerms       String?       @map("delivery_terms")
+
+  // GST / statutory
+  placeOfSupply       String?       @map("place_of_supply")
+  reverseCharge       Boolean?      @map("reverse_charge")
+
+  // e-invoice
+  irn                 String?
+  ackNo               String?       @map("ack_no")
+  ackDateRaw          String?       @map("ack_date_raw")
+
+  // beneficiary bank details (where the customer should pay)
+  bankAccountName     String?       @map("bank_account_name")
+  bankName            String?       @map("bank_name")
+  bankAccountNumber   String?       @map("bank_account_number")
+  bankIfsc            String?       @map("bank_ifsc")
+  bankSwift           String?       @map("bank_swift")
+  bankBranch          String?       @map("bank_branch")
+  bankUpi             String?       @map("bank_upi")
 
   // totals (1:1, flattened)
   subtotal            Decimal?      @db.Decimal(18, 2)
-  taxTotal            Decimal?      @map("tax_total")     @db.Decimal(18, 2)
-  grandTotal          Decimal?      @map("grand_total")   @db.Decimal(18, 2)
-  balanceDue          Decimal?      @map("balance_due")   @db.Decimal(18, 2)
-  amountPaid          Decimal?      @map("amount_paid")   @db.Decimal(18, 2)
+  totalDiscount       Decimal?      @map("total_discount")    @db.Decimal(18, 2)
+  taxTotal            Decimal?      @map("tax_total")         @db.Decimal(18, 2)
+  shippingCharges     Decimal?      @map("shipping_charges")  @db.Decimal(18, 2)
+  roundOff            Decimal?      @map("round_off")         @db.Decimal(18, 2)
+  adjustment          Decimal?      @db.Decimal(18, 2)
+  grandTotal          Decimal?      @map("grand_total")       @db.Decimal(18, 2)
+  balanceDue          Decimal?      @map("balance_due")       @db.Decimal(18, 2)
+  amountPaid          Decimal?      @map("amount_paid")       @db.Decimal(18, 2)
   amountInWords       String?       @map("amount_in_words")
 
   // payment_info (1:1, mostly null)
@@ -130,7 +159,9 @@ model Document {
   taxes               DocumentTax[]
   linkedDocuments     LinkedDocument[]
 
-  @@unique([documentType, documentNumber])
+  // scoped per-user so two users can share a document number
+  @@unique([userId, messageId, docIndex])
+  @@index([messageId])
   @@index([userId])
   @@index([documentType])
   @@index([documentDate])
@@ -165,20 +196,33 @@ model DocumentParty {
 
 // ---------- DOCUMENT ITEMS -------------------------------------------
 model DocumentItem {
-  id          String   @id @default(uuid()) @db.Uuid
-  documentId  String   @map("document_id") @db.Uuid
-  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid()) @db.Uuid
+  documentId     String   @map("document_id") @db.Uuid
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  lineNo      Int?     @map("line_no")
-  slNo        Int?     @map("sl_no")
-  description String?
-  hsnSac      String?  @map("hsn_sac")
-  quantity    Decimal? @db.Decimal(18, 4)
-  unit        String?
-  rate        Decimal? @db.Decimal(18, 4)
-  taxPercent  Decimal? @map("tax_percent") @db.Decimal(6, 2)
-  taxAmount   Decimal? @map("tax_amount")  @db.Decimal(18, 2)
-  amount      Decimal? @db.Decimal(18, 2)
+  lineNo         Int?     @map("line_no")
+  slNo           Int?     @map("sl_no")
+  description    String?
+  hsnSac         String?  @map("hsn_sac")
+  quantity       Decimal? @db.Decimal(18, 4)
+  unit           String?
+  rate           Decimal? @db.Decimal(18, 4)
+
+  discountPercent Decimal? @map("discount_percent") @db.Decimal(6, 2)
+  discountAmount  Decimal? @map("discount_amount")  @db.Decimal(18, 2)
+
+  taxPercent     Decimal? @map("tax_percent") @db.Decimal(6, 2)
+  taxAmount      Decimal? @map("tax_amount")  @db.Decimal(18, 2)
+
+  // optional per-line GST split
+  cgstRate       Decimal? @map("cgst_rate")   @db.Decimal(6, 2)
+  cgstAmount     Decimal? @map("cgst_amount") @db.Decimal(18, 2)
+  sgstRate       Decimal? @map("sgst_rate")   @db.Decimal(6, 2)
+  sgstAmount     Decimal? @map("sgst_amount") @db.Decimal(18, 2)
+  igstRate       Decimal? @map("igst_rate")   @db.Decimal(6, 2)
+  igstAmount     Decimal? @map("igst_amount") @db.Decimal(18, 2)
+
+  amount         Decimal? @db.Decimal(18, 2)
 
   @@index([documentId])
   @@map("document_items")
@@ -216,15 +260,33 @@ model LinkedDocument {
   @@map("linked_documents")
 }
 
-model reserachData {
-  id                  String        @id @default(uuid()) @db.Uuid
-   // extraction meta
-  confidenceScore     Decimal?      @map("confidence_score")     @db.Decimal(5, 2)
-  completenessPercent Decimal?      @map("completeness_percent") @db.Decimal(5, 2)
-  inputTokens         Int?          @map("input_tokens")
-  outputTokens        Int?          @map("output_tokens")
-  totalTokens         Int?          @map("total_tokens")
-  extractedAt         DateTime?     @map("extracted_at") @db.Timestamptz(6)
+
+model ResearchData {
+  id                  String    @id @default(uuid()) @db.Uuid
+
+  messageId           String?   @map("message_id")     // kis mail se
+  operation           String?                          // "verdict" | "extraction"
+  model               String?                          // pricing ke liye MUST
+  inputTokens         Int?      @map("input_tokens")
+  outputTokens        Int?      @map("output_tokens")
+  totalTokens         Int?      @map("total_tokens")
+  researchDataChild   ResearchDataChild[]
+
+  extractedAt         DateTime? @map("extracted_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+
+  @@map("research_data")
+}
+
+model ResearchDataChild {
+  id                  String    @id @default(uuid()) @db.Uuid
+  documentType        String?   @map("document_type")
+  confidenceScore     Decimal?  @map("confidence_score")     @db.Decimal(5, 2)
+  completenessPercent Decimal?  @map("completeness_percent") @db.Decimal(5, 2)
+  researchId         String    @map("research_id") @db.Uuid
+  researchData        ResearchData @relation(fields: [researchId], references: [id], onDelete: Cascade)
+   @@map("research_data_child")
 }
 
 model RefreshToken {
