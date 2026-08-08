@@ -1,0 +1,49 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0e1116;
+}
+
+.shine-edges {
+  position: relative;
+}
+/* top line */
+.shine-edges::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;      /* top edge */
+  height: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.75),
+    transparent
+  );
+  pointer-events: none;
+}
+/* bottom line */
+.shine-edges::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;      /* bottom edge */
+  height: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.75),
+    transparent
+  );
+  pointer-events: none;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
