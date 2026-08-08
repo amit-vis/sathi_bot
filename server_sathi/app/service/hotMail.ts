@@ -1,8 +1,9 @@
 import axios from "axios";
-import { createUser, getUserByMail, updatOTP, updatTokens } from "../model/user.js";
+import { createUser, getUserByMail, getUserDatasubscription, updatOTP, updatTokens } from "../model/user.js";
 import { decryptionToken, encryptToken, sendOTP } from "../config/helperfunction/userHelper.js";
 import bcrypt from "bcryptjs";
 import { sendOTPackGmailQueue } from "./queue/gmailQueue.js";
+import { msQueue } from "./queue/msQueueExtract.js";
 
 const MICROSOFT_SCOPES = ["offline_access", "User.Read", "Mail.Read", "Mail.ReadWrite"];
 
@@ -693,9 +694,8 @@ export const stopUserWatch = async (req: any, res: any) => {
 // // Gmail mein Pub/Sub topic pe message aata hai,
 // // Outlook mein tumhare notificationUrl pe POST aata hai
 
-export const handleOutlookWebhook = async (req: any, res: any) => {
-    // Step 1: Validation token — Graph pehli baar ye bhejta hai subscription create pe
-    if (req.query.validationToken) {
+export const notification = async (req: any, res: any) => {
+  if (req.query.validationToken) {
         console.log("Webhook validation received");
         return res.status(200).contentType("text/plain").send(req.query.validationToken);
     }
@@ -704,19 +704,27 @@ export const handleOutlookWebhook = async (req: any, res: any) => {
     try {
         const notifications = req.body?.value || [];
 
-        for (const notification of notifications) {
+        for (const notifi of notifications) {
             // clientState verify karo (tamper protection)
-            if (notification.clientState !== "sathi_bot_secret") {
+            if (notifi.clientState !== "sathi_bot_secret") {
                 console.warn("Invalid clientState — ignoring");
                 continue;
             }
 
-            const resourceData = notification.resourceData;
-            const messageId = resourceData?.id;
+            const subscriptionId = notifi.subscriptionId;
+             const messageId = notifi.resourceData?.id
+
+            const userData = await getUserDatasubscription(subscriptionId);
+
+            await msQueue.add("msSync", {emailAddress: userData?.userEmail},{
+                jobId: `${userData?.userEmail}-${messageId}`
+            })
+
+
 
             // Yahan se tumhara existing processing logic call hoga
             // e.g., processNewEmail(messageId, notification)
-            console.log(`New mail notification: ${messageId}`);
+            console.log(`New mail notification: ${subscriptionId}`);
         }
 
         // Graph ko 202 within 3 seconds chahiye, warna retry karega
@@ -724,18 +732,5 @@ export const handleOutlookWebhook = async (req: any, res: any) => {
     } catch (error: any) {
         console.error("Webhook error:", error?.message);
         return res.status(202).send(); // still 202, retry se bachne ke liye
-    }
-};
-
-export const notification = (req: any, res: any) => {
-    try {
-        const data = req.body;
-        return res.status(200).json({
-            ok: true
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false
-        })
     }
 }

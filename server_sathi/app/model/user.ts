@@ -93,5 +93,15 @@ export const deleteOTP = async (userId: string) => {
     return data
 }
 
+export const getUserDatasubscription = async (subscriptionId: string)=>{
+    const data = await prisma.user.findFirst({
+        where:{
+            msSubscriptionId: subscriptionId
+        }
+    });
+
+    return data
+}
+
 
 
