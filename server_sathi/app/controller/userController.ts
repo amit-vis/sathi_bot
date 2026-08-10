@@ -177,6 +177,7 @@ export const logoutAll = async (req: any, res: any) => {
 
 export const sessions = async (req: any, res: any) => {
     try {
+        console.log("here is session ", req.user)
         return res.json({
             sessions: await listSessions(req.user.id)
         })
@@ -190,6 +191,7 @@ export const sessions = async (req: any, res: any) => {
 
 export const deleteSession = async (req: any, res: any) => {
     try {
+   
         const owned = await listSessions(req.user.id);
         if (!owned?.some((s) => s.familyId === req.params.familyId)) {
             return res.status(404).json({
