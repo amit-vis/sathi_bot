@@ -80,6 +80,7 @@ model User {
   
   documents             Document[]
   refrestoken           RefreshToken[]
+  subscriptions         Subscription[]
   
   @@map("users")
 }
@@ -309,39 +310,116 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+// ──────────────────────────────────────────
+// ENUMS — hard-coded flags, no magic strings
+// ──────────────────────────────────────────
+
+enum PaymentFlow {
+  IN    // paisa aaya (recharge, free credit, etc.)
+  OUT   // paisa gaya (refund)
+}
+
+enum PaymentType {
+  RECHARGE       // user ne khud pay kiya
+  REFUND         // paisa wapas gaya
+  FREE           // free mein mila (promo/coupon)
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum CreditFlow {
+  IN    // credit mila (recharge, admin, free)
+  OUT   // credit kata (product use kiya)
+}
+
+enum CreditType {
+  USER_RECHARGE    // user ne khud recharge kiya
+  ADMIN_RECHARGE   // admin ne manually diya
+  FREE_CREDIT      // promo/signup bonus
+  USAGE            // SaaS product use kiya → credit kata
+  EXPIRED          // expire ho gaya
+  REFUND           // refund ke time credit adjust hua
+}
+
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+// ──────────────────────────────────────────
+// MODELS
+// ──────────────────────────────────────────
+
 model Subscription {
-  id  String @id @default(uuid()) @db.Uuid
-  userId  String @map(user_id) @db.Uuid
-  user  User @relation(fields:[userId], references:[id], onDelete: Cascade)
-  startDate DateTime? @map("start_date")
-  endDate   DateTime? @map("end_date")
-  subscriptionStatus  Boolean @default(false) @map("subscription_status")
-  totalCredits Number @dafault(0) @map("total_credits")
-  totalAmount Decimal? @map(total_amount)
-  paymnetLogs PaymnetLogs[]
-  creditLogs  CreditLogs[];
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String            @id @default(uuid()) @db.Uuid
+  userId             String            @unique @map("user_id") @db.Uuid
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan               SubscriptionPlan  @default(FREE)
+  subscriptionStatus Boolean           @default(false) @map("subscription_status")
+
+  startDate          DateTime?         @map("start_date")
+  endDate            DateTime?         @map("end_date")
+
+  totalCredits       Int               @default(0) @map("total_credits")
+  usedCredits        Int               @default(0) @map("used_credits")
+  remainingCredits   Int               @default(0) @map("remaining_credits")
+
+  totalAmount        Decimal?          @map("total_amount") @db.Decimal(10, 2)
+
+  paymentLogs        PaymentLogs[]
+  creditLogs         CreditLogs[]
+
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("subscriptions")
 }
 
 model PaymentLogs {
-  id String @id @default(uuid()) @db.Uuid
-  subscriptionId String @map("subscription_id) @db.Uuid
-  subscription  Subscription @relation(fields: [subscriptionId], references:[id], onDelete: Cascade)
-  payment Decimal @map("payment")
-  paymentType String @map("payment_type")
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String         @id @default(uuid()) @db.Uuid
+  subscriptionId   String         @map("subscription_id") @db.Uuid
+  subscription     Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  amount           Decimal        @db.Decimal(10, 2)
+  paymentFlow      PaymentFlow    @map("payment_flow")       // IN or OUT
+  paymentType      PaymentType    @map("payment_type")       // RECHARGE, REFUND, FREE
+  paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status") // PENDING, SUCCESS, FAILED
+
+  transactionId    String?        @map("transaction_id")     // gateway reference
+  remarks          String?
+
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([subscriptionId])
+  @@map("payment_logs")
 }
 
 model CreditLogs {
-  id String @id @default(uuid()) @db.Uuid
-  subscriptionId String @map("subscription_id) @db.Uuid
-  subscription  Subscription @relation(fields: [subscriptionId], references:[id], onDelete: Cascade)
-  creditType String @map("credit_type")
-  creditCount String @map("credit_count")
-  creditConsptionType String @map("credit_consption_type")
-  subscriptionType String @map("subscription_type")
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String       @id @default(uuid()) @db.Uuid
+  subscriptionId    String       @map("subscription_id") @db.Uuid
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  creditCount       Int          @map("credit_count")
+  creditFlow        CreditFlow   @map("credit_flow")          // IN or OUT
+  creditType        CreditType   @map("credit_type")          // USER_RECHARGE, ADMIN_RECHARGE, USAGE, etc.
+
+  balanceBefore     Int          @map("balance_before")        // recharge/use se pehle kitna tha
+  balanceAfter      Int          @map("balance_after")         // recharge/use ke baad kitna hai
+
+  remarks           String?
+  paymentLogId      String?      @map("payment_log_id") @db.Uuid  // link to payment if recharge
+
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([subscriptionId])
+  @@map("credit_logs")
 }
