@@ -323,6 +323,7 @@ enum PaymentType {
   RECHARGE       // user ne khud pay kiya
   REFUND         // paisa wapas gaya
   FREE           // free mein mila (promo/coupon)
+  ACTIVATION_CHARGE
 }
 
 enum PaymentStatus {
@@ -350,6 +351,13 @@ enum SubscriptionPlan {
   BASIC
   PRO
   ENTERPRISE
+}
+
+enum PaymentMedium {
+  UPI
+  CREDIT_CARD
+  DEBIT_CARD
+  SYSTEM
 }
 
 // ──────────────────────────────────────────
@@ -388,11 +396,12 @@ model PaymentLogs {
   subscription     Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   amount           Decimal        @db.Decimal(10, 2)
-  paymentFlow      PaymentFlow    @map("payment_flow")       // IN or OUT
-  paymentType      PaymentType    @map("payment_type")       // RECHARGE, REFUND, FREE
-  paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status") // PENDING, SUCCESS, FAILED
+  paymentFlow      PaymentFlow    @map("payment_flow")       
+  paymentType      PaymentType    @map("payment_type")      
+  paymentStatus    PaymentStatus  @default(PENDING) @map("payment_status") 
+  paymentMedium    PaymentMedium  @map("payment_medium")
 
-  transactionId    String?        @map("transaction_id")     // gateway reference
+  transactionId    String?        @map("transaction_id")   
   remarks          String?
 
   createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -408,14 +417,14 @@ model CreditLogs {
   subscription      Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   creditCount       Int          @map("credit_count")
-  creditFlow        CreditFlow   @map("credit_flow")          // IN or OUT
-  creditType        CreditType   @map("credit_type")          // USER_RECHARGE, ADMIN_RECHARGE, USAGE, etc.
+  creditFlow        CreditFlow   @map("credit_flow")        
+  creditType        CreditType   @map("credit_type")          
 
-  balanceBefore     Int          @map("balance_before")        // recharge/use se pehle kitna tha
-  balanceAfter      Int          @map("balance_after")         // recharge/use ke baad kitna hai
+  balanceBefore     Int          @map("balance_before")        
+  balanceAfter      Int          @map("balance_after")        
 
   remarks           String?
-  paymentLogId      String?      @map("payment_log_id") @db.Uuid  // link to payment if recharge
+  paymentLogId      String?      @map("payment_log_id") @db.Uuid  
 
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)

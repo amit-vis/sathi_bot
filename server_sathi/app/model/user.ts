@@ -30,7 +30,14 @@ export const getUserByMail = async (identifier: string) => {
     try {
         const where = buildWhere(identifier);
 
-        const userData = await prisma.user.findFirst({ where });
+        const userData = await prisma.user.findFirst(
+            { where,
+                include:{
+                    subscriptions: true
+                }
+             }
+            
+        );
         return userData;
     } catch (error) {
         console.error(error);

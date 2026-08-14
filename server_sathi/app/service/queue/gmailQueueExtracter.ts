@@ -5,6 +5,7 @@ import { chunkArray, filterMail } from "../../config/helperfunction/helper.js";
 import { checkVerdict, extracter } from "../genAi.js"
 import { upsertDocument } from "../../model/document.js";
 import { createResearch } from "../../model/researchData.js";
+import { createCredit, getSubscriptionUserWise } from "../../model/subscription.js";
 
 export const redisConfig: any = {
     host: "localhost",
@@ -27,6 +28,21 @@ export const gemailQueue = new Queue("extracted_data", {
 
 
 new Worker("extracted_data", async (job: any) => {
+    
+    const getSubscriptionDetails = await getSubscriptionUserWise(job?.data?.userId);
+      const currentDate = new Date();
+    if(getSubscriptionDetails?.endDate && currentDate>getSubscriptionDetails.endDate!){
+      console.error("your subscription account has been ended need to activate");
+      return
+    }
+    if(getSubscriptionDetails?.remainingCredits && getSubscriptionDetails.remainingCredits>0){
+      console.error("your credit count is zero need to recharge");
+      return
+    }
+    if(!getSubscriptionDetails?.subscriptionStatus){
+      console.error("your subscription status is not active");
+      return
+    }
 
     const accessToekn = await generateNewAccessToken(job?.data.emailAddress) as any;
     if (!accessToekn) {
@@ -112,6 +128,12 @@ new Worker("extracted_data", async (job: any) => {
                     confidence: d.confidence,
                     completeness: d.completeness,
                 }))
+            })
+
+            await createCredit(job?.data?.userId, {
+                creditCount: 1,
+                creditFlow: "OUT",
+                creditType: "USAGE"
             })
 
             await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress);

@@ -116,8 +116,8 @@ export const checkVerdict = async (mail: any) => {
     const attachmentInfo =
       attachments.length > 0
         ? attachments
-            .map((a: any) => `- ${a.filename || "unnamed"} (${a.mimeType || "unknown"})`)
-            .join("\n")
+          .map((a: any) => `- ${a.filename || "unnamed"} (${a.mimeType || "unknown"})`)
+          .join("\n")
         : "(none)";
 
     // ✅ EARLY EXIT: attachment hai but subject+body dono empty → seedha business maano
@@ -208,62 +208,62 @@ const universalDocumentSchema = z.object({
     .describe(
       "Type of document. Keywords: 'Tax Invoice'=invoice, 'Bill'=bill, 'Purchase Order'/'PO'=purchase_order, 'Sales Order'/'Order Confirmation'=sales_order, 'Quotation'/'Estimate'=quotation, 'Payment'/'Payments Made'=payment, 'Expense'=expense, 'Receipt'=receipt, 'Credit Note'=credit_note, 'Debit Note'=debit_note"
     ),
- 
+
   document_number: z
     .string()
     .nullable()
     .describe("The main document number. Keywords: 'Invoice No', 'Bill#', 'PO#', 'Sales Order#', 'Quotation#', 'Payment#', 'Ref No'"),
- 
+
   document_date: z
     .string()
     .nullable()
     .describe("Main date of the document, exactly as printed (do not reformat). Keywords: 'Invoice Date', 'Bill Date', 'Order Date', 'Payment Date', 'Estimate Date', 'Dated'"),
- 
+
   due_date: z
     .string()
     .nullable()
     .describe("Payment due date if present, exactly as printed. Keywords: 'Due Date', 'DueDate', 'Payment Due'"),
- 
+
   expiry_date: z
     .string()
     .nullable()
     .describe("Expiry/validity date, mainly for quotations. Keywords: 'Expiry Date', 'Valid Until'"),
- 
+
   currency: z
     .enum(["INR", "USD", "EUR", "GBP", "AED", "OTHER"])
     .nullable()
     .describe("Primary currency of the document. Infer from symbols (₹/Rs.=INR, $=USD, €=EUR) or currency codes shown. Use OTHER for anything not listed and put the real code in currency_raw"),
- 
+
   currency_raw: z
     .string()
     .nullable()
     .describe("The actual currency code/symbol as printed (e.g. 'SGD', 'AUD', '¥'). Fill this ESPECIALLY when currency = OTHER so the real value isn't lost"),
- 
+
   exchange_rate: z
     .number()
     .nullable()
     .describe("Exchange rate to base/home currency, if the document shows one. Keywords: 'Exchange Rate', 'Ex. Rate', 'Conversion Rate'"),
- 
+
   subject: z.string().nullable().describe("Subject or description line if present. Keywords: 'Subject'"),
- 
+
   payment_terms: z.string().nullable().describe("Payment terms only. Keywords: 'Terms', 'Payment Terms', e.g. 'Net 30'"),
- 
+
   delivery_terms: z
     .string()
     .nullable()
     .describe("Delivery / dispatch terms, kept separate from payment_terms. Keywords: 'Delivery Terms', 'Incoterms', 'Dispatch Through', 'Mode of Transport'"),
- 
+
   // ---- GST / statutory (India) ----
   place_of_supply: z
     .string()
     .nullable()
     .describe("Keywords: 'Place of Supply', 'POS' — usually a state name/code on GST invoices"),
- 
+
   reverse_charge: z
     .boolean()
     .nullable()
     .describe("Whether tax is under reverse charge. Keywords: 'Reverse Charge' (Yes/No). true=Yes, false=No"),
- 
+
   einvoice: z
     .object({
       irn: z.string().nullable().describe("Invoice Reference Number. Keywords: 'IRN'"),
@@ -272,7 +272,7 @@ const universalDocumentSchema = z.object({
     })
     .nullable()
     .describe("E-invoice details, if present (common on Indian B2B invoices). null if none"),
- 
+
   issuing_company: z.object({
     name: z.string().nullable().describe("The company that created/issued this document — usually the letterhead at the top"),
     address: z.string().nullable(),
@@ -285,7 +285,7 @@ const universalDocumentSchema = z.object({
     phone: z.array(z.string()).default([]),
     email: z.array(z.string()).default([]),
   }),
- 
+
   counterparty: z
     .object({
       role: z
@@ -303,7 +303,7 @@ const universalDocumentSchema = z.object({
       email: z.array(z.string()).default([]),
     })
     .nullable(),
- 
+
   additional_parties: z
     .array(
       z.object({
@@ -314,7 +314,7 @@ const universalDocumentSchema = z.object({
     )
     .default([])
     .describe("Any extra named parties beyond issuing_company and counterparty, e.g. a separate shipping address"),
- 
+
   // ---- Beneficiary bank details (where the customer should PAY) ----
   bank_details: z
     .object({
@@ -328,7 +328,7 @@ const universalDocumentSchema = z.object({
     })
     .nullable()
     .describe("Beneficiary bank details printed for payment. Distinct from payment_info (which is how an already-made payment went out). null if none"),
- 
+
   items: z
     .array(
       z.object({
@@ -338,14 +338,14 @@ const universalDocumentSchema = z.object({
         quantity: z.number().nullable().describe("Keywords: 'Qty', 'Quantity'"),
         unit: z.string().nullable(),
         rate: z.number().nullable().describe("Keywords: 'Rate', 'Unit Price'"),
- 
+
         discount_percent: z.number().nullable().describe("Line-level discount %. Keywords: 'Disc %', 'Discount'"),
         discount_amount: z.number().nullable().describe("Line-level discount value"),
- 
+
         // Overall line tax (use when not split into CGST/SGST/IGST)
         tax_percent: z.number().nullable().describe("Keywords: 'Tax %'"),
         tax_amount: z.number().nullable().describe("Keywords: 'Tax'"),
- 
+
         // Optional per-line GST split (fill only if the line shows them separately)
         cgst_rate: z.number().nullable(),
         cgst_amount: z.number().nullable(),
@@ -353,12 +353,12 @@ const universalDocumentSchema = z.object({
         sgst_amount: z.number().nullable(),
         igst_rate: z.number().nullable(),
         igst_amount: z.number().nullable(),
- 
+
         amount: z.number().nullable().describe("Keywords: 'Amount'"),
       })
     )
     .default([]),
- 
+
   totals: z.object({
     subtotal: z.number().nullable().describe("Keywords: 'Sub Total', 'Total Taxable Amount'"),
     total_discount: z.number().nullable().describe("Document-level total discount. Keywords: 'Discount', 'Total Discount'"),
@@ -371,7 +371,7 @@ const universalDocumentSchema = z.object({
     amount_paid: z.number().nullable().describe("Keywords: 'Amount Paid', 'Payment Amount'"),
     amount_in_words: z.string().nullable(),
   }),
- 
+
   taxes: z
     .array(
       z.object({
@@ -383,7 +383,7 @@ const universalDocumentSchema = z.object({
       })
     )
     .default([]),
- 
+
   payment_info: z
     .object({
       payment_mode: z.string().nullable().describe("Keywords: 'Payment Mode', e.g. Cash, Bank Transfer"),
@@ -392,7 +392,7 @@ const universalDocumentSchema = z.object({
     })
     .nullable()
     .describe("Only relevant for payment/expense documents; null otherwise"),
- 
+
   linked_documents: z
     .array(
       z.object({
@@ -404,16 +404,16 @@ const universalDocumentSchema = z.object({
     )
     .default([])
     .describe("Any cross-referenced document numbers found — SO Number on a Bill, Ref# on a PO, the bill this payment was applied to, etc"),
- 
+
   notes: z.string().nullable().describe("Short notes section, if present"),
   terms_and_conditions: z.string().nullable().describe("Long terms & conditions text block, if present"),
- 
+
   // Object (not a string) so it maps cleanly to Prisma Json?
   additional_data: z
-     .string()
+    .string()
     .nullable()
     .describe("Any other relevant fields found that don't fit the schema above, as a flat key-value object (no nested objects). Return null if nothing extra."),
-      confidence_score: z.number().min(0).max(100).nullable()
+  confidence_score: z.number().min(0).max(100).nullable()
     .describe("Your honest confidence (0-100) that this extraction is accurate. Lower this significantly if the document was blurry, handwritten, had unusual formatting, or if you had to guess any values."),
 });
 const multiDocumentSchema = z.object({

@@ -8,6 +8,7 @@ import { sendOTPackGmailQueue } from "../service/queue/gmailQueue.js";
 import { sendOTP } from "../config/helperfunction/userHelper.js";
 import { mailaccesRealTime } from "../service/googleMail.js";
 import crypto from "crypto";
+import {  createSubscription, getSubscriptionUserWise } from "../model/subscription.js";
 
 
 export const createController = async (req: any, res: any) => {
@@ -125,8 +126,40 @@ export const veriFyOTP = async (req: any, res: any) => {
                 success: false
             })
         }
-
-
+        const checkSubscription = await getSubscriptionUserWise(existingUser.id);
+        if(!checkSubscription){
+            const futureDate = new Date();
+            futureDate.setMonth(futureDate.getMonth() + 1);
+            await createSubscription({
+                userId: existingUser.id,
+                subscriptionStatus: true,
+                endDate: futureDate,
+                totalCredits: 150,
+                usedCredits: 0,
+                remainingCredits: 150,
+                totalAmount: 300,
+                paymentChild:[{
+                    amount:250,
+                    paymentFlow: "IN",
+                    PaymentType: "FREE",
+                    paymentStatus: "SUCCESS",
+                    paymentMedium: "SYSTEM"
+                },{
+                    amount:50,
+                    paymentFlow: "IN",
+                    paymentType: "FREE",
+                    paymentStatus: "SUCCESS",
+                    paymentMedium: "SYSTEM"
+                }],
+                creditChild:[{
+                    creditCount: 150,
+                    creditFlow: "IN",
+                    creditType: "FREE_CREDIT",
+                    balanceBefore: 0,
+                    balanceAfter: 150
+                }]
+            })
+        }
         const accessToken = await issueTokens(res, existingUser, crypto.randomUUID(), req);
         await deleteOTP(existingUser.id);
         await mailaccesRealTime(existingUser.userEmail!)

@@ -3,7 +3,7 @@ import { prisma } from "../config/db.js";
 export const createSubscription = async (subscriptionData: any) => {
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // Build the create payload
+      // Step 1: Base Subscription data
       const createData: any = {
         userId: subscriptionData.userId,
         plan: subscriptionData.plan || "FREE",
@@ -16,7 +16,7 @@ export const createSubscription = async (subscriptionData: any) => {
         totalAmount: subscriptionData.totalAmount || null,
       };
 
-      // paymentLogs sirf tab create hoga jab data aaye
+      // Step 2: Sirf PaymentLogs ko nested create karo
       if (subscriptionData.paymentChild?.length) {
         createData.paymentLogs = {
           create: subscriptionData.paymentChild.map((c: any) => ({
@@ -25,27 +25,42 @@ export const createSubscription = async (subscriptionData: any) => {
             paymentType: c.paymentType,
             paymentStatus: c.paymentStatus || "PENDING",
             transactionId: c.transactionId || null,
+            paymentMedium: c.paymentMedium,
             remarks: c.remarks || null,
           })),
         };
       }
 
-      // creditLogs sirf tab create hoga jab data aaye
+      // Step 3: Pehle Subscription aur Payment create kar lo
+      // 'include' lagana zaroori hai taaki generated payment IDs wapas mil sakein
+      const subscription = await tx.subscription.create({ 
+        data: createData,
+        include: { paymentLogs: true } 
+      });
+
+      // Step 4: Ab CreditLogs create karo, using the generated PaymentLog IDs
       if (subscriptionData.creditChild?.length) {
-        createData.creditLogs = {
-          create: subscriptionData.creditChild.map((c: any) => ({
+        
+        // Agar aapko default first payment ki ID chahiye credits se link karne ke liye:
+        const defaultPaymentId = subscription.paymentLogs?.[0]?.id || null;
+
+        await tx.creditLogs.createMany({
+          data: subscriptionData.creditChild.map((c: any) => ({
+            subscriptionId: subscription.id, // Direct relationship link
             creditCount: c.creditCount,
             creditFlow: c.creditFlow,
             creditType: c.creditType,
             balanceBefore: c.balanceBefore ?? 0,
             balanceAfter: c.balanceAfter ?? 0,
             remarks: c.remarks || null,
-            paymentLogId: c.paymentLogId || null,
+            // Yahan par hum generated payment ID link kar rahe hain
+            paymentLogId: c.paymentLogId || defaultPaymentId, 
           })),
-        };
+        });
       }
 
-      return tx.subscription.create({ data: createData });
+      // Step 5: Return complete subscription
+      return subscription;
     });
 
     return result;
@@ -68,7 +83,6 @@ export const updateSubInDatabase = async (subscriptionId: string, status: boolea
 
 export const createPaymentAndCredit = async (userId: string, combinedData: any) => {
   const result = await prisma.$transaction(async (tx) => {
-  
     const subscription = await tx.subscription.findUnique({
       where: { userId },
     });
@@ -77,8 +91,8 @@ export const createPaymentAndCredit = async (userId: string, combinedData: any) 
       throw new Error("Subscription not found");
     }
 
-    // subscription update karo
-    await tx.subscription.update({
+    // 1. Subscription update karo
+    const updatedSubscription = await tx.subscription.update({
       where: { userId },
       data: {
         totalCredits: combinedData.totalCredits,
@@ -92,12 +106,29 @@ export const createPaymentAndCredit = async (userId: string, combinedData: any) 
       },
     });
 
-    let paymentLog = null;
-    let creditLog = null;
+    const paymentLogs = [];
+    const creditLogs = [];
 
-    // paymentLog sirf tab create hoga jab data aaye
-    if (combinedData.payment) {
-      paymentLog = await tx.paymentLogs.create({
+    // 2. Multiple Payments handle karne ka logic (Array support)
+    if (combinedData.payments && Array.isArray(combinedData.payments)) {
+      for (const pay of combinedData.payments) {
+        const createdPay = await tx.paymentLogs.create({
+          data: {
+            subscriptionId: subscription.id,
+            amount: pay.amount,
+            paymentFlow: pay.paymentFlow,
+            paymentType: pay.paymentType,
+            paymentStatus: pay.paymentStatus || "PENDING",
+            transactionId: pay.transactionId || null,
+            remarks: pay.remarks || null,
+            paymentMedium: pay.paymentMedium
+          },
+        });
+        paymentLogs.push(createdPay);
+      }
+    } else if (combinedData.payment) {
+      // Backward compatibility (agar kabhi single object bheja ho)
+      const createdPay = await tx.paymentLogs.create({
         data: {
           subscriptionId: subscription.id,
           amount: combinedData.payment.amount,
@@ -106,13 +137,32 @@ export const createPaymentAndCredit = async (userId: string, combinedData: any) 
           paymentStatus: combinedData.payment.paymentStatus || "PENDING",
           transactionId: combinedData.payment.transactionId || null,
           remarks: combinedData.payment.remarks || null,
+          paymentMedium: combinedData.paymentMedium
         },
       });
+      paymentLogs.push(createdPay);
     }
 
-    // creditLog sirf tab create hoga jab data aaye
-    if (combinedData.credit) {
-      creditLog = await tx.creditLogs.create({
+    // 3. Multiple Credits handle karne ka logic (Array support)
+    if (combinedData.credits && Array.isArray(combinedData.credits)) {
+      for (const cred of combinedData.credits) {
+        const createdCred = await tx.creditLogs.create({
+          data: {
+            subscriptionId: subscription.id,
+            creditCount: cred.creditCount,
+            creditFlow: cred.creditFlow,
+            creditType: cred.creditType,
+            balanceBefore: cred.balanceBefore ?? 0,
+            balanceAfter: cred.balanceAfter ?? 0,
+            remarks: cred.remarks || null,
+            paymentLogId: cred.paymentLogId || (paymentLogs[0]?.id ?? null),
+          },
+        });
+        creditLogs.push(createdCred);
+      }
+    } else if (combinedData.credit) {
+      // Backward compatibility
+      const createdCred = await tx.creditLogs.create({
         data: {
           subscriptionId: subscription.id,
           creditCount: combinedData.credit.creditCount,
@@ -121,12 +171,17 @@ export const createPaymentAndCredit = async (userId: string, combinedData: any) 
           balanceBefore: combinedData.credit.balanceBefore ?? 0,
           balanceAfter: combinedData.credit.balanceAfter ?? 0,
           remarks: combinedData.credit.remarks || null,
-          paymentLogId: paymentLog?.id || null, // auto-link payment se
+          paymentLogId: paymentLogs[0]?.id || null,
         },
       });
+      creditLogs.push(createdCred);
     }
 
-    return { paymentLog, creditLog };
+    return { 
+      subscription: updatedSubscription, 
+      paymentLogs, 
+      creditLogs 
+    };
   });
 
   return result;
@@ -211,6 +266,7 @@ export const getSubscriptionUserWise = async (
           transactionId: true,
           remarks: true,
           createdAt: true,
+          paymentMedium: true
         },
         orderBy: { createdAt: "desc" },
         skip: paymentSkip,
@@ -287,3 +343,20 @@ export const getAllSubscription = async (page = 1, limit = 10) => {
     },
   };
 };
+
+export const updateStatus = async ()=>{
+  const currentDate = new Date();
+
+  const subscriptiodata = await prisma.subscription.updateMany({
+    where:{
+      subscriptionStatus: true,
+      endDate:{
+        lt: currentDate
+      }
+    },
+    data:{
+      subscriptionStatus: false
+    }
+  });
+  return subscriptiodata
+}
