@@ -11,6 +11,12 @@ const Signin = () => {
   const handleContinue = () => router.push("/otp");
     return (
          <Screen>
+          <a 
+        href="/subscription" 
+        className="absolute top-8 right-8 z-10 text-sm font-medium text-muted transition-colors hover:text-primary hover:underline"
+      >
+        View Plans
+      </a>
       {/* Logo */}
       <div className="mt-10">
         <Wordmark size="lg" />

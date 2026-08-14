@@ -187,7 +187,7 @@ export const callbackUrl = async (req: any, res: any) => {
             console.error("Failed to fetch user info:", error);
             return res.status(500).json({ error: "Failed to fetch user information" });
         }
-        return res.redirect(`${process.env.FRONTEND_URL}/dashboard?userId=${user?.id}&email=${encodeURIComponent(
+        return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(
             UserInfo?.email
         )}&provider=gmail&success=true`)
     } catch (error) {
