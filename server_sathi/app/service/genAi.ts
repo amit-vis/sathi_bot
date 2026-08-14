@@ -116,9 +116,31 @@ export const checkVerdict = async (mail: any) => {
     const attachmentInfo =
       attachments.length > 0
         ? attachments
-          .map((a: any) => `- ${a.filename || "unnamed"} (${a.mimeType || "unknown"})`)
-          .join("\n")
+            .map((a: any) => `- ${a.filename || "unnamed"} (${a.mimeType || "unknown"})`)
+            .join("\n")
         : "(none)";
+
+    // ✅ EARLY EXIT: attachment hai but subject+body dono empty → seedha business maano
+    const hasAttachments = attachments.length > 0;
+    const hasBody = !!(mail.body && mail.body.trim().length > 0);
+    const hasSubject = !!(mail.subject && mail.subject.trim().length > 0 && mail.subject.trim().toLowerCase() !== "no subject");
+
+    if (hasAttachments && !hasBody && !hasSubject) {
+      console.log(`⚡ Fast-pass: ${attachments.length} attachment(s) with empty subject+body — skipping LLM, marking as business`);
+      return {
+        data: {
+          isBusiness: true,
+          type: "other_business" as const,
+          confidence_score: 70,
+        },
+        _meta: {
+          token_usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
+          completeness_percent: 100,
+          document_type: "other_business",
+          extracted_at: new Date(),
+        },
+      };
+    }
 
     const userContent = `
 From: ${mail.from}
@@ -130,6 +152,8 @@ Attachments (${attachments.length}):
 ${attachmentInfo}
 `.trim();
 
+    console.log("📨 Verdict input:\n", userContent); // debug log
+
     const response = await agent.invoke({
       messages: [
         { role: "system", content: systemPrompt },
@@ -139,6 +163,17 @@ ${attachmentInfo}
 
     const extractedData = response.structuredResponse ?? null;
     if (!extractedData) return null;
+
+    // ✅ SAFETY NET: LLM ne block kiya but attachments hain → override
+    if (!extractedData.isBusiness && hasAttachments) {
+      console.log(
+        `⚠️ LLM said not business but ${attachments.length} attachment(s) found — overriding to business`
+      );
+      extractedData.isBusiness = true;
+      extractedData.type = extractedData.type === "none" ? "other_business" : extractedData.type;
+      extractedData.confidence_score = Math.min(extractedData.confidence_score ?? 50, 50);
+    }
+
     const tokenUsage = extractTokenUsage(response);
     const completeness = calculateCompleteness(extractedData);
     return {
@@ -148,14 +183,21 @@ ${attachmentInfo}
         completeness_percent: completeness,
         document_type: extractedData.type,
         extracted_at: new Date(),
-      }
-    }
+      },
+    };
   } catch (error) {
     console.error("checkVerdict error:", error);
-    return { isBusiness: true, type: "other_business" };   // fail-open
+    return {
+      data: { isBusiness: true, type: "other_business", confidence_score: null },
+      _meta: {
+        token_usage: {},
+        completeness_percent: 0,
+        document_type: "other_business",
+        extracted_at: new Date(),
+      },
+    };
   }
 };
-
 const universalDocumentSchema = z.object({
   document_type: z
     .enum([
@@ -583,6 +625,7 @@ ${mail.body}
       ]
     })
     const extractedData = result.structuredResponse ?? null;
+    if (!extractedData) return null;
     if (!extractedData?.documents || extractedData.documents.length === 0) {
       console.warn('No documents extracted');
       return null;

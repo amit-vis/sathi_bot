@@ -228,8 +228,8 @@ export const generateNewAccessTokenOutlook = async (userMail: string) => {
         const response = await axios.post(
             'https://login.microsoftonline.com/common/oauth2/v2.0/token',
             new URLSearchParams({                          // ⚠️ Microsoft ko x-www-form-urlencoded chahiye
-                client_id: process.env.OUTLOOK_CLIENT_ID!,
-                client_secret: process.env.OUTLOOK_CLIENT_SECRET!,
+                client_id: process.env.MICROSOFT_CLIENT_ID!,
+                client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
                 refresh_token: refreshToken,
                 grant_type: 'refresh_token',
                 scope: 'https://graph.microsoft.com/.default offline_access',
@@ -261,42 +261,32 @@ export const generateNewAccessTokenOutlook = async (userMail: string) => {
 
 // ─── Unread Messages ───
 
-const getMessageId = async (accessToken: string, skipToken: string | null = null) => {
+const getMessageId = async (accessToken: string, nextLink: string | null = null) => {
     try {
-        // Microsoft Graph: unread, not tagged by bot, from Focused inbox
-        let url = `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages`;
-        const params: any = {
-            $filter: "isRead eq false and receivedDateTime ge 2026-07-15T00:00:00Z",
-            $select: "id",
-            $top: 100,
-            $orderby: "receivedDateTime desc",
-        };
-
-        if (skipToken) {
-            // Graph API pagination uses full URL in @odata.nextLink,
-            // but if you're passing just the skipToken:
-            params.$skiptoken = skipToken;
-        }
-
-        const response = await axios.get(url, {
-            params,
+        let url = nextLink || `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages`;
+        
+        const config: any = {
             headers: {
                 Authorization: `Bearer ${accessToken}`,
                 "Content-Type": "application/json",
             },
-        });
+        };
 
-        const messages = (response.data.value || []).map((m: any) => ({ id: m.id }));
-
-        // nextLink se skipToken nikalo
-        let nextSkipToken: string | null = null;
-        const nextLink: string | undefined = response.data["@odata.nextLink"];
-        if (nextLink) {
-            const parsed = new URL(nextLink);
-            nextSkipToken = parsed.searchParams.get("$skiptoken") || nextLink; // fallback: full URL
+        if (!nextLink) {
+            config.params = {
+                $filter: "isRead eq false and receivedDateTime ge 2026-07-15T00:00:00Z and NOT (categories/any(c: c eq 'bot_accessed')) and NOT (categories/any(c: c eq 'bot_blocked'))",
+                $select: "id",
+                $top: 100,
+                $orderby: "receivedDateTime desc",
+            };
         }
 
-        return { messages, nextPageToken: nextSkipToken };
+        const response = await axios.get(url, config);
+
+        const messages = (response.data.value || []).map((m: any) => ({ id: m.id }));
+        const nextPageLink: string | null = response.data["@odata.nextLink"] || null;
+
+        return { messages, nextPageToken: nextPageLink };
     } catch (error: any) {
         console.error("Outlook API error:", error?.response?.data || error?.message);
         return { messages: [], nextPageToken: null };
@@ -422,108 +412,118 @@ export const markAsBotBlocked = async (
 
 // ─── Attachments ───
 
-const getAttachment = async (messageId: string, accessToken: string) => {
-    try {
-        const response = await axios.get(
-            `https://graph.microsoft.com/v1.0/me/messages/${messageId}/attachments`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
+const getAttachment = async (
+  messageId: string,
+  accessToken: string,
+  maxFileSize?: number
+) => {
+  try {
+    const response = await axios.get(
+      `https://graph.microsoft.com/v1.0/me/messages/${messageId}/attachments`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
 
-        const attachments = [];
-        for (const att of response.data.value || []) {
-            // sirf file attachments, inline images skip
-            if (att["@odata.type"] === "#microsoft.graph.fileAttachment") {
-                attachments.push({
-                    filename: att.name,
-                    mimeType: att.contentType,
-                    data: att.contentBytes,          
-                    size: att.size,
-                });
-            }
-        }
-        return attachments;
-    } catch (error: any) {
-        console.error("Attachment error:", error?.response?.data || error?.message);
-        return [];
+    const attachments = [];
+    for (const att of response.data.value || []) {
+      if (
+        att["@odata.type"] === "#microsoft.graph.fileAttachment" &&
+        !att.isInline &&
+        (!maxFileSize || att.size <= maxFileSize)
+      ) {
+        attachments.push({
+          filename: att.name,
+          mimeType: att.contentType,
+          data: att.contentBytes,
+          size: att.size,
+        });
+      }
     }
+    return attachments;
+  } catch (error: any) {
+    console.error("Attachment error:", error?.response?.data || error?.message);
+    return [];
+  }
 };
 
 // ─── Message Body ───
 
 const getMessageBody = (message: any): string => {
-    // Graph API body already decoded deta hai
-    if (message.body?.content) {
-        if (message.body.contentType === "text") {
-            return message.body.content;
-        }
-        // HTML hai — strip tags for plain text fallback
-        return message.body.content.replace(/<[^>]*>/g, "").trim();
+  if (message.body?.content) {
+    if (message.body.contentType === "text") {
+      return message.body.content;
     }
-    return "No text content found";
+    return message.body.content.replace(/<[^>]*>/g, "").trim();
+  }
+  return "No text content found";
 };
 
 // ─── Get Single Message ───
 
 interface ExtractionConfig {
-    includeAttachments?: boolean;
-    maxFileSize?: number;
+  includeAttachments?: boolean;
+  maxFileSize?: number;
 }
 
 export const getMessages = async (
-    accessToken: string,
-    messageId: string,
-    config?: ExtractionConfig
+  accessToken: string,
+  messageId: string,
+  config?: ExtractionConfig
 ) => {
-    try {
-        const response = await axios.get(
-            `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
-            {
-                params: {
-                    $select: "id,conversationId,from,subject,body,receivedDateTime,isRead,categories,internetMessageHeaders",
-                },
-                headers: { Authorization: `Bearer ${accessToken}` },
-            }
-        );
+  try {
+    const response = await axios.get(
+      `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
+      {
+        params: {
+          $select:
+            "id,conversationId,from,subject,body,receivedDateTime,isRead,categories,internetMessageHeaders,hasAttachments",
+        },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
 
-        const msg = response.data;
+    const msg = response.data;
 
-        // headers ko map banao (Gmail jaisa format)
-        const headerMap: Record<string, string> = {};
-        for (const h of msg.internetMessageHeaders || []) {
-            if (h?.name) headerMap[h.name.toLowerCase()] = h.value ?? "";
-        }
-
-        const extracted: any = {
-            messageId,
-            threadId: msg.conversationId,                       // Gmail threadId ≈ Graph conversationId
-            from: msg.from?.emailAddress
-                ? `${msg.from.emailAddress.name} <${msg.from.emailAddress.address}>`
-                : "Unknown",
-            subject: msg.subject || "No Subject",
-            body: getMessageBody(msg),
-            date: new Date(msg.receivedDateTime).toLocaleString(),
-            internalDate: new Date(msg.receivedDateTime).getTime(),
-
-            categories: msg.categories || [],
-            headers: headerMap,
-
-            isUnread: !msg.isRead,
-            extracted_at: new Date(),
-        };
-
-        if (config?.includeAttachments && msg.hasAttachments) {
-            extracted.attachments = await getAttachment(messageId, accessToken);
-            extracted.attachmentCount = extracted.attachments.length;
-        } else {
-            extracted.attachments = [];
-            extracted.attachmentCount = 0;
-        }
-
-        return extracted;
-    } catch (error: any) {
-        console.error("Get message error:", error?.response?.data || error?.message);
-        return null;
+    const headerMap: Record<string, string> = {};
+    for (const h of msg.internetMessageHeaders || []) {
+      if (h?.name) headerMap[h.name.toLowerCase()] = h.value ?? "";
     }
+
+    const extracted: any = {
+      messageId,
+      threadId: msg.conversationId,
+      from: msg.from?.emailAddress
+        ? `${msg.from.emailAddress.name} <${msg.from.emailAddress.address}>`
+        : "Unknown",
+      subject: msg.subject || "No Subject",
+      body: getMessageBody(msg),
+      date: new Date(msg.receivedDateTime).toLocaleString(),
+      internalDate: new Date(msg.receivedDateTime).getTime(),
+      categories: msg.categories || [],
+      headers: headerMap,
+      isUnread: !msg.isRead,
+      extracted_at: new Date(),
+    };
+
+    if (config?.includeAttachments && msg.hasAttachments) {
+      extracted.attachments = await getAttachment(
+        messageId,
+        accessToken,
+        config?.maxFileSize
+      );
+      extracted.attachmentCount = extracted.attachments.length;
+    } else {
+      extracted.attachments = [];
+      extracted.attachmentCount = 0;
+    }
+
+    return extracted;
+  } catch (error: any) {
+    console.error(
+      "Get message error:",
+      error?.response?.data || error?.message
+    );
+    return null;
+  }
 };
 
 // ─── Real-time Push Notifications (Gmail Watch → Graph Subscription) ───
@@ -598,8 +598,9 @@ export const renewSubscription = async (subscriptionId: string, userEmail: strin
 // ─── Get Message Metadata ───
 
 const CLASSIFY_HEADERS_OUTLOOK = "id,conversationId,from,subject,receivedDateTime,categories,internetMessageHeaders";
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-export const getMessageMeta = async (accessToken: string, messageId: string) => {
+const getMessageMeta = async (accessToken: string, messageId: string) => {
     try {
         const response = await axios.get(
             `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
@@ -634,6 +635,26 @@ export const getMessageMeta = async (accessToken: string, messageId: string) => 
         console.error("Get message meta error:", error?.response?.data || error?.message);
         return null;
     }
+};
+
+export const fetchAllMeta = async (accessToken: string, messageIds: string[]) => {
+    const results: any[] = [];
+    const batchSize = 4; // Microsoft ka concurrent limit
+
+    for (let i = 0; i < messageIds.length; i += batchSize) {
+        const batch = messageIds.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+            batch.map(id => getMessageMeta(accessToken, id))
+        );
+        results.push(...batchResults.filter(Boolean));
+
+        // Har batch ke baad 1 second ruk
+        if (i + batchSize < messageIds.length) {
+            await delay(1000);
+        }
+    }
+
+    return results;
 };
 
 // ─── Stop Subscription ───
@@ -716,7 +737,7 @@ export const notification = async (req: any, res: any) => {
 
             const userData = await getUserDatasubscription(subscriptionId);
 
-            await msQueue.add("msSync", {emailAddress: userData?.userEmail},{
+            await msQueue.add("msSync", {emailAddress: userData?.userEmail, userId:userData?.id},{
                 jobId: `${userData?.userEmail}-${messageId}`
             })
 
