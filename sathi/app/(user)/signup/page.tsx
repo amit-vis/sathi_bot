@@ -6,9 +6,6 @@ import { redirectRoute } from "@/app/api/google";
 
 const SignUp = () => {
        
-  const handleRediarct = async ()=>{
-    return await redirectRoute()
-  }
   // useEffect(() => {
   //   if(window.FB){
   //     console.log("FB already loaded, initializing...");
@@ -121,11 +118,13 @@ const SignUp = () => {
       {/* Buttons card */}
       <div className="shine-edges mt-8 flex flex-col gap-4 rounded-3xl border border-line bg-surface p-6 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]">
         {/* Continue with Google */}
-        <button onClick={handleRediarct} className="shine-edges flex h-14 w-full items-center justify-center gap-3 rounded-full bg-white text-base font-semibold text-[#1A1A1A] shadow-glow-white transition-transform active:scale-[0.98]">
+        <a href="http://localhost:5000/app/gmail/redirecTGmail" 
+        className="shine-edges flex h-14 w-full items-center justify-center gap-3 rounded-full bg-white text-base font-semibold text-[#1A1A1A] shadow-glow-white transition-transform active:scale-[0.98]"
+        >
 
           <GoogleIcon />
           Continue with Google
-        </button>
+        </a>
 
         {/* Continue with WhatsApp */}
         {/* <button
@@ -137,10 +136,12 @@ const SignUp = () => {
         </button> */}
 
         {/* Continue with Hotmail */}
-        <button className="shine-edges flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#0072C6] text-base font-semibold text-white shadow-glow-blue transition-transform active:scale-[0.98]">
+        <a 
+        href="http://localhost:5000/app/hotmail/redirectMicrosoft"
+        className="shine-edges flex h-14 w-full items-center justify-center gap-3 rounded-full bg-[#0072C6] text-base font-semibold text-white shadow-glow-blue transition-transform active:scale-[0.98]">
           <HotmailIcon />
           Continue with Hotmail
-        </button>
+        </a>
 
 
         {/* Bottom link — mt-auto se neeche chala jaata hai */}

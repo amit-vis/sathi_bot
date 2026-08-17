@@ -2,7 +2,7 @@ import { verifyAccessToken } from "./tokens.js";
 
 export const requireAuth = async (req: any, res: any, next: any) => {
     const header = req.headers.authorization;
-    console.log(header, req)
+  
     if (!header?.startsWith('Bearer ')) {
         return res.status(401).json({
             error: 'MISSING_TOKEN'

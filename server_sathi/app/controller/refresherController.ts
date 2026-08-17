@@ -1,3 +1,4 @@
+import { getClientIp } from "../config/helperfunction/userHelper.js";
 import { clearCookieOptions, createRefreshToken, hashToken, REFRESH_COOKIE, refreshCookieOptions, refreshExpiry, signAccessToken } from "../config/tokens.js"
 import { consumeRefreshToken, findHash, insertRefreshToken, revokeFamily } from "../model/refreshToken.js";
 import { getUserByMail } from "../model/user.js";
@@ -31,6 +32,7 @@ export const refresh = async (req: any, res: any) => {
         }
         const hash = hashToken(raw);
         const consumed = await consumeRefreshToken(hash);
+        // const ipAdd = getClientIp(req)
         if (!consumed) {
             const known = await findHash(hash);
             if (known?.used) {

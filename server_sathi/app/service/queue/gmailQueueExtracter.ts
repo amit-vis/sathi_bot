@@ -35,10 +35,10 @@ new Worker("extracted_data", async (job: any) => {
       console.error("your subscription account has been ended need to activate");
       return
     }
-    if(getSubscriptionDetails?.remainingCredits && getSubscriptionDetails.remainingCredits>0){
-      console.error("your credit count is zero need to recharge");
-      return
-    }
+    if(!getSubscriptionDetails?.remainingCredits || getSubscriptionDetails.remainingCredits <= 0){
+    console.error("your credit count is zero need to recharge");
+    return
+}
     if(!getSubscriptionDetails?.subscriptionStatus){
       console.error("your subscription status is not active");
       return
@@ -111,7 +111,7 @@ new Worker("extracted_data", async (job: any) => {
             console.log(` LLM blocked: ${verdict.data.type} - ${verdict.data.confidence_score}-${verdict.data.isBusiness}`, verdict._meta);
 
             const data = await extracter(mail);
-            console.log("here is the extracted data", data)
+            // console.log("here is the extracted data", data)
             const docs = data?.data?.documents ?? [];
             for (let i = 0; i < docs.length; i++) {
                 await upsertDocument(job.data.userId, docs[i], mail.messageId, i);   // 👈 i pass

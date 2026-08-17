@@ -61,6 +61,9 @@ export const createSubscription = async (subscriptionData: any) => {
 
       // Step 5: Return complete subscription
       return subscription;
+    },{
+      timeout: 15000,
+      maxWait: 10000
     });
 
     return result;

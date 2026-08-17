@@ -105,15 +105,13 @@ export const callbackUrl = async (req: any, res: any) => {
         }
         const tokenresponse = await axios.post(
             `https://oauth2.googleapis.com/token`,
-            {
-                client_id: process.env.GMAIL_CLIENT_ID,
-                client_secret: process.env.GMAIL_CLIENT_SECRET,
-                code: code,
-                redirect_uri: process.env.GMAIL_REDIRECT_URI,
-                grant_type: 'authorization_code',
-                access_type: "offline",
-                prompt: "consent"
-            }
+             new URLSearchParams({
+        client_id: process.env.GMAIL_CLIENT_ID!,
+        client_secret: process.env.GMAIL_CLIENT_SECRET!,
+        code: code as string,
+        redirect_uri: process.env.GMAIL_REDIRECT_URI!,
+        grant_type: 'authorization_code',
+    })
         );
         const gmailToken = tokenresponse.data.access_token;
         const gmailRefreshToken = tokenresponse.data.refresh_token;
@@ -129,11 +127,13 @@ export const callbackUrl = async (req: any, res: any) => {
 
             user = await getUserByMail(UserInfo?.email);
             const otp = sendOTP()
-            const encryptOTP = await bcrypt.hashSync(otp, 10)
+            const encryptOTP = await bcrypt.hash(otp, 10)
             const futeureMinute = 10 * 60 * 1000
             const otpExpireTimestamp = new Date(Date.now() + futeureMinute);
             const encryptedAccessToken = encryptToken(gmailToken);
-            const encryptedRefrshToken = encryptToken(gmailRefreshToken);
+            const encryptedRefrshToken = gmailRefreshToken 
+    ? encryptToken(gmailRefreshToken) 
+    : null;
 
             if (user) {
                 user = await updatTokens(UserInfo?.email,
@@ -189,7 +189,7 @@ export const callbackUrl = async (req: any, res: any) => {
         }
         return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(
             UserInfo?.email
-        )}&provider=gmail&success=true`)
+        )}`)
     } catch (error) {
         console.error("Gmail callback error:", error);
         return res.status(500).json({ error: "Authentication failed" });

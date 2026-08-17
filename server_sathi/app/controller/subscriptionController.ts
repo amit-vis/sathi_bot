@@ -152,3 +152,4 @@ export const getAllSubscriptionController = async (req: any, res: any)=>{
         data: getAllSubs
      })
 }
+

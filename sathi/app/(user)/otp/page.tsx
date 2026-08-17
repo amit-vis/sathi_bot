@@ -1,14 +1,18 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Screen, Wordmark } from "../signup/component";
+import { verifyOTP } from "@/app/api/user";
 
 export default function OtpPage() {
   const router = useRouter();
+  const userEmail = useSearchParams();
+  const email = userEmail.get("email") as string;
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [activeIndex, setActiveIndex] = useState(0);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  console.log("here is teh otp", otp.join(""))
 
   // Type karne pe next box pe focus
   const handleChange = (index: number, value: string) => {
@@ -33,7 +37,17 @@ export default function OtpPage() {
   };
 
   const isComplete = otp.every((d) => d !== "");
-  const handleVerify = () => router.push("/dashboard");
+  const handleVerify = async () => {
+  try {
+    const otpnew = otp.join("");
+    const result = await verifyOTP(otpnew, email);
+    console.log("verify result:", result);     // ← kya aa raha hai
+    console.log("cookies:", document.cookie);  // ← cookie set hui ya nahi
+    router.push("/dashboard");
+  } catch (error) {
+    console.error("FAILED:", error);
+  }
+};
 
   return (
     <Screen>

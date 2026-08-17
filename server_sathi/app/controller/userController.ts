@@ -5,10 +5,11 @@ import { issueTokens } from "./refresherController.js";
 import { clearCookieOptions, hashToken, REFRESH_COOKIE } from "../config/tokens.js";
 import { findHash, listSessions, revokeAllForUser, revokeFamily } from "../model/refreshToken.js";
 import { sendOTPackGmailQueue } from "../service/queue/gmailQueue.js";
-import { sendOTP } from "../config/helperfunction/userHelper.js";
+import { getEmailProvider, sendOTP } from "../config/helperfunction/userHelper.js";
 import { mailaccesRealTime } from "../service/googleMail.js";
 import crypto from "crypto";
 import {  createSubscription, getSubscriptionUserWise } from "../model/subscription.js";
+import { mailAccessRealTimeOutlook } from "../service/hotMail.js";
 
 
 export const createController = async (req: any, res: any) => {
@@ -60,7 +61,7 @@ export const sendOtpTouser = async (req: any, res: any) => {
         }
 
         const otp = sendOTP()
-        const encryptedOTp = await bcrypt.hashSync(otp, 10);
+        const encryptedOTp = await bcrypt.hash(otp, 10);
         const futeureMinute = 10 * 60 * 1000
         const otpExpireTimestamp = new Date(Date.now() + futeureMinute);
         await updatOTP(identifier, {
@@ -141,7 +142,7 @@ export const veriFyOTP = async (req: any, res: any) => {
                 paymentChild:[{
                     amount:250,
                     paymentFlow: "IN",
-                    PaymentType: "FREE",
+                    paymentType: "FREE",
                     paymentStatus: "SUCCESS",
                     paymentMedium: "SYSTEM"
                 },{
@@ -162,7 +163,19 @@ export const veriFyOTP = async (req: any, res: any) => {
         }
         const accessToken = await issueTokens(res, existingUser, crypto.randomUUID(), req);
         await deleteOTP(existingUser.id);
-        await mailaccesRealTime(existingUser.userEmail!)
+        const provider = getEmailProvider(existingUser.userEmail!);
+try {
+    if (provider === "gmail") {
+        await mailaccesRealTime(existingUser.userEmail!);
+    } else if ( process.env.OUTLOOK_WEBHOOK_URL) {
+        await mailAccessRealTimeOutlook(existingUser.userEmail!);
+    } else {
+        console.warn(`No mail subscription for provider: ${provider}`);
+    }
+} catch (err: any) {
+    console.error("Mail subscription failed (non-blocking):");
+    // Login continue karega, subscription baad mein retry kar lena
+}
         return res.json({
             message: "you have signIn successfully!",
             accessToken,
@@ -170,7 +183,7 @@ export const veriFyOTP = async (req: any, res: any) => {
         })
 
     } catch (error) {
-        console.error(error)
+        console.error("error")
         return res.status(500).json({
             message: "errorn in verify otp",
             success: false
@@ -210,9 +223,9 @@ export const logoutAll = async (req: any, res: any) => {
 
 export const sessions = async (req: any, res: any) => {
     try {
-        console.log("here is session ", req.user)
+        const cookieToken = req.cookies?.rt
         return res.json({
-            sessions: await listSessions(req.user.id)
+            sessions: await listSessions(cookieToken, req.user.id)
         })
     } catch (error: any) {
         return res.status(500).json({
@@ -224,8 +237,8 @@ export const sessions = async (req: any, res: any) => {
 
 export const deleteSession = async (req: any, res: any) => {
     try {
-   
-        const owned = await listSessions(req.user.id);
+   const cookieToken = req.cookies?.rt
+        const owned = await listSessions(cookieToken, req.user.id);
         if (!owned?.some((s) => s.familyId === req.params.familyId)) {
             return res.status(404).json({
                 error: "SESSION_NOT_FOUND"

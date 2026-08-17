@@ -27,7 +27,7 @@ new Worker("ms_extracted", async (job: any) => {
         console.error("your subscription account has been ended need to activate");
         return
     }
-    if (getSubscriptionDetails?.remainingCredits && getSubscriptionDetails.remainingCredits > 0) {
+    if (!getSubscriptionDetails?.remainingCredits || getSubscriptionDetails.remainingCredits <= 0) {
         console.error("your credit count is zero need to recharge");
         return
     }

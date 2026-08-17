@@ -55,3 +55,21 @@ export const PinGenerator = ()=>{
   const pin = String(Math.floor(Math.random() * (maxFloor - minCeil)) + minCeil)
   return pin
 }
+
+// Helper to detect provider
+export const getEmailProvider = (email: string): "gmail" | "outlook" | "unknown" => {
+    const domain = email.split("@")[1]?.toLowerCase() as string;
+    if (["gmail.com", "googlemail.com"].includes(domain)) return "gmail";
+    if (["hotmail.com", "outlook.com", "live.com", "msn.com"].includes(domain)) return "outlook";
+    return "unknown";
+};
+
+// IP extract karne ka sahi tarika
+export function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded?.split(",")[0]?.trim() as string; // pehla IP = actual client
+  }
+  // fallback for direct connections
+  return req.headers.get("x-real-ip") || "unknown";
+}

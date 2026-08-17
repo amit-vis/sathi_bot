@@ -3,6 +3,7 @@ import crypto from "crypto";
 import type { CookieOptions } from "express";
 
 
+
 export const signAccessToken = (user: any) => {
     return jwt.sign(
         {},
@@ -46,3 +47,4 @@ export const clearCookieOptions: CookieOptions = {
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
 }
+

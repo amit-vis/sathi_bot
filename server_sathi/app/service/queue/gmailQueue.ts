@@ -33,7 +33,7 @@ const worker = new Worker(
 );
 
 worker.on("completed", (job) => console.log(`✅ Job done: ${job.id}`));
-worker.on("failed", (job, err) => console.error(`❌ Job failed: ${job?.id}`, err.message));
+worker.on("failed", (job, err) => console.error(`❌ Job failed: ${job?.id}`));
 
 // Sirf tab close karo jab app shut down ho raha ho
 process.on("SIGTERM", async () => {

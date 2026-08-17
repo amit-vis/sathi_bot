@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import {prisma} from "../config/db.js";
+import { hashToken } from "../config/tokens.js";
 
 export const insertRefreshToken = async (refreshData: any) => {
 
@@ -99,31 +100,50 @@ export const revokeAllForUser = async (userId: any) => {
     }
 }
 
-export const listSessions = async (userId: any) => {
-    try {
-        const sessionData = await prisma.refreshToken.findMany({
-            where: {
-                userId: userId,
-                revoked: false,
-                expiresAt: { gt: new Date() }
-            },
-            distinct: ["familyId"],
-            orderBy: [
-                { familyId: "asc" },
-                { createdAt: "desc" }
-            ],
-            select: {
-                familyId: true,
-                userAgent: true,
-                ip: true,
-                createdAt: true
-            }
-        });
-        return sessionData
-    } catch (error) {
-        console.error(error)
+export const listSessions = async (token: string, userId: string) => {
+  try {
+
+    if (!token) {
+      throw new Error("No refresh token found");
     }
-}
+
+    const tokenHash = hashToken(token);
+
+    // 1. Current device ka familyId nikalo
+    const currentSession = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      select: { familyId: true },
+    });
+
+    // 2. Active sessions nikalo (latest per family)
+    const sessionData = await prisma.refreshToken.findMany({
+      where: {
+        userId,
+        revoked: false,
+        expiresAt: { gt: new Date() },
+      },
+      distinct: ["familyId"],
+      orderBy: { createdAt: "desc" }, // sirf createdAt desc — latest pehle aaye
+      select: {
+        familyId: true,
+        userAgent: true,
+        ip: true,
+        createdAt: true,
+      },
+    });
+
+    // 3. Current device mark karo — ye missing tha
+    const sessions = sessionData.map((session) => ({
+      ...session,
+      isCurrentDevice: session.familyId === currentSession?.familyId,
+    }));
+
+    return sessions;
+  } catch (error) {
+    console.error("Error listing sessions:", error); // actual error log karo
+    throw error;
+  }
+};
 
 export const deletExpired = async () => {
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -135,3 +155,4 @@ export const deletExpired = async () => {
     });
     return rowCount
 }
+

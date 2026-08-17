@@ -193,7 +193,9 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
             return res.status(500).json({ error: "Authentication failed" });
         }
 
-        return res.redirect(`/dashboard`)
+        return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(
+            UserInfo?.email
+        )}`)
     } catch (error: any) {
         console.error("OUTER CATCH ERROR:", error?.response?.data || error.message);
         return res.status(500).json({ error: "Authentication failed" });
@@ -528,7 +530,7 @@ export const getMessages = async (
 
 // ─── Real-time Push Notifications (Gmail Watch → Graph Subscription) ───
 
-export const mailAccessRealTime = async (userEmail: string) => {
+export const mailAccessRealTimeOutlook = async (userEmail: string) => {
     const accessToken = await generateNewAccessTokenOutlook(userEmail);
     if (!accessToken) {
         console.error(`No token for ${userEmail} — subscription skip`);

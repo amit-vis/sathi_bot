@@ -1,13 +1,13 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import HeaderWithProfile from "../component/headerProfile";
+import { getUser } from "@/app/auth/store";
+import { getAllSession } from "@/app/api/user";
 
 export default function PersonalDetails() {
-  const router = useRouter();
-  
-  // States
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
   const [isEditing, setIsEditing] = useState(false);
+  const user = getUser();
   
   const [formData, setFormData] = useState({
     name: "Amit Vishwakarma",
@@ -21,14 +21,11 @@ export default function PersonalDetails() {
     accountStatus: "Active",
   };
 
-  const [sessions, setSessions] = useState([
-    { id: 1, device: "MacBook Pro - Chrome", ip: "192.168.1.5", location: "Kochi, Kerala", isCurrent: true },
-    { id: 2, device: "Windows Desktop - Edge", ip: "172.16.0.45", location: "Satna, MP", isCurrent: false },
-    { id: 3, device: "iPhone 13 - Safari", ip: "10.0.0.12", location: "Kochi, Kerala", isCurrent: false },
+  const [sessions, setSessions] = useState<any>([
+
   ]);
 
   // Yeh variable batayega ki konsa page abhi active hai (menu highlight karne ke liye)
-  const activePage: any = "personal_details";
 
   // Handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,72 +38,31 @@ export default function PersonalDetails() {
   };
 
   const handleLogoutSession = (sessionId: number) => {
-    setSessions(sessions.filter((session) => session.id !== sessionId));
+    setSessions(sessions.filter((session: any) => session.id !== sessionId));
   };
+
+  const fetchSession = async ()=>{
+    const sessionRes = await getAllSession();
+    setSessions(sessionRes.sessions)
+  }
+
+  useEffect(()=>{
+    if(user){
+      fetchSession()
+    }
+  },[user])
+
+  console.log("here is the user", getUser())
 
   return (
     <div className="min-h-screen bg-base text-ink font-sans flex flex-col">
       
       {/* --- Top Header Navigation --- */}
-      <header className="h-20 flex items-center justify-between px-6 md:px-10 border-b border-line bg-surface/80 backdrop-blur-md sticky top-0 z-40">
-        
-        {/* Back Button (Top Left) */}
-        <button 
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-ink"
-        >
-          <BackIcon />
-          Back
-        </button>
-
-        {/* User Account Dropdown (Top Right) */}
-        <div className="relative">
-          <button 
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-3 p-2 pr-4 rounded-full border border-line bg-surface hover:border-primary/50 transition-all shadow-sm"
-          >
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/30">
-              A
-            </div>
-            <span className="text-sm font-medium hidden md:block">User Account</span>
-            <ChevronDownIcon className={`w-4 h-4 text-muted transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {isProfileOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)}></div>
-              <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-line bg-surface shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                
-                <div className="px-4 py-3 border-b border-line">
-                  <p className="text-sm font-medium text-ink">{formData.name}</p>
-                  <p className="text-xs text-muted truncate">{staticData.email}</p>
-                </div>
-                
-                <div className="p-2 space-y-1">
-                  {/* Highlighted Active Option */}
-                  <button className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${activePage === "personal_details" ? "bg-primary/10 text-primary font-medium" : "text-muted hover:text-ink hover:bg-surface-2"}`}>
-                    <UserIcon /> Personal Details
-                  </button>
-                  
-                  <button className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${activePage === "subscription_details" ? "bg-primary/10 text-primary font-medium" : "text-muted hover:text-ink hover:bg-surface-2"}`}>
-                    <CreditCardIcon /> Subscription Details
-                  </button>
-                  
-                  <button className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${activePage === "help_faq" ? "bg-primary/10 text-primary font-medium" : "text-muted hover:text-ink hover:bg-surface-2"}`}>
-                    <HelpIcon /> Help & FAQ
-                  </button>
-                </div>
-
-                <div className="p-2 border-t border-line">
-                  <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#ea4335] hover:bg-[#ea4335]/10 transition-colors font-medium">
-                    <LogoutIcon /> Sign Out
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </header>
+      <HeaderWithProfile
+        activePage="personal_details"
+        userName={user?.userName}
+        userEmail={user?.userEmail}
+      />
 
       {/* --- Main Content --- */}
       <main className="flex-1 p-6 md:p-10 overflow-y-auto">
@@ -221,19 +177,19 @@ export default function PersonalDetails() {
                 <p className="text-xs text-muted mb-6">Log out of devices you don't recognize.</p>
 
                 <div className="space-y-4">
-                  {sessions.map((session) => (
+                  {sessions?.map((session: any) => (
                     <div key={session.id} className="p-4 rounded-2xl bg-base border border-line flex flex-col gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium text-ink text-sm">{session.device}</p>
-                          {session.isCurrent && (
+                          <p className="font-medium text-ink text-sm">{session.user_agent}</p>
+                          {session.isCurrentDevice && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-primary/20 text-primary border border-primary/30">
                               THIS DEVICE
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted mt-1">IP: {session.ip}</p>
-                        <p className="text-xs text-muted">Location: {session.location}</p>
+                        <p className="text-xs text-muted mt-1">IP: {session?.ip}</p>
+                        <p className="text-xs text-muted">Location: {"India"}</p>
                       </div>
 
                       {!session.isCurrent && (

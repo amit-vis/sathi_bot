@@ -9,7 +9,7 @@ const store = (prefix: any) => new RedisStore({
 
 export const loginLimiter = rateLimit({
   windowMs: 60 * 60_000,
-  limit: 10,
+  limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "TOO_MANY_ATTEMPTS" },

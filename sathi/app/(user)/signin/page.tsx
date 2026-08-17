@@ -2,13 +2,21 @@
 import { useRouter } from "next/navigation";
 import { Screen, Wordmark } from "../signup/component";
 import { useState } from "react";
+import { signin } from "@/app/api/user";
 
 const Signin = () => {
      const router = useRouter();
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
 
-  const handleContinue = () => router.push("/otp");
+  const handleContinue = async () => {
+    await signin(value);
+    
+    
+    router.push(`/otp?email=${value}&provider=gmail&success=true`);
+    return
+  
+  };
     return (
          <Screen>
           <a 
