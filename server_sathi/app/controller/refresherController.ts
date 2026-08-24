@@ -2,6 +2,7 @@ import { getClientIp } from "../config/helperfunction/userHelper.js";
 import { clearCookieOptions, createRefreshToken, hashToken, REFRESH_COOKIE, refreshCookieOptions, refreshExpiry, signAccessToken } from "../config/tokens.js"
 import { consumeRefreshToken, findHash, insertRefreshToken, revokeFamily } from "../model/refreshToken.js";
 import { getUserByMail } from "../model/user.js";
+import logger from "../utils/logger.js";
 
 export const issueTokens = async (res: any, user: any, familyId: any, req: any) => {
     try {
@@ -15,9 +16,23 @@ export const issueTokens = async (res: any, user: any, familyId: any, req: any) 
             ip: req.ip
         });
 
+        logger.info("Issue Token", {
+            type: "ISSUE_TOKEN",
+            userId: user?.id,
+            action: "created New token",
+            details: "issue new token"
+        })
+
         res.cookie(REFRESH_COOKIE, raw, refreshCookieOptions);
         return signAccessToken(user)
     } catch (error: any) {
+        logger.error('Error updating plan', {
+            type: 'API_ERROR',
+            userId: req.user.id,
+            error: error.message,
+            stack: error.stack,
+            url: req.originalUrl
+        });
         throw error
     }
 }
@@ -59,8 +74,21 @@ export const refresh = async (req: any, res: any) => {
         }
 
         const accessToken = await issueTokens(res, user, consumed.familyId, req);
+        logger.info("Refresh New Access Token", {
+            type: "Refresh for new access token",
+            userId: user?.id,
+            action: "Refresh the browser for new accesstoken",
+            details: "generated new access token"
+        })
         return res.json({ accessToken, user })
     } catch (error: any) {
+        logger.error("Error updating plan", {
+            type: "Refresh_API_ERROR",
+            userId: req.user.id,
+            error: error.message,
+            stack: error.stack,
+            url: req.originalUrl
+        })
         return res.status(500).json({
             message: "error in refresh Token",
             error: error?.message

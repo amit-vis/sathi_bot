@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import HeaderWithProfile from '../component/headerProfile';
+import { userSubscriptiondetails } from '@/app/api/subscription';
 
 // --- Type Definitions ---
 export interface PaymentLog {
@@ -81,20 +82,37 @@ export default function SubscriptionDetailsPage() {
   const [paymentPage, setPaymentPage] = useState(1);
   const [creditPage, setCreditPage] = useState(1);
   const ITEMS_PER_PAGE = 4; // Adjust items per page as needed
+  const [userSubsdata, setUserSubsData] = useState<any>()
 
   // Payment Logs Pagination Logic
-  const totalPaymentPages = Math.ceil(data.paymentLogs.length / ITEMS_PER_PAGE);
   const currentPaymentLogs = data.paymentLogs.slice(
     (paymentPage - 1) * ITEMS_PER_PAGE,
     paymentPage * ITEMS_PER_PAGE
   );
 
   // Credit Logs Pagination Logic
-  const totalCreditPages = Math.ceil(data.creditLogs.length / ITEMS_PER_PAGE);
   const currentCreditLogs = data.creditLogs.slice(
     (creditPage - 1) * ITEMS_PER_PAGE,
     creditPage * ITEMS_PER_PAGE
   );
+
+  const fetuserSubscription = async ()=>{
+    try {
+      const getData = await userSubscriptiondetails(paymentPage, creditPage, ITEMS_PER_PAGE);
+      if(getData.status === 200){
+        setUserSubsData(getData.data.data);
+  
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  useEffect(()=>{
+    fetuserSubscription()
+  },[paymentPage, creditPage]);
+
+  console.log("here is the user",userSubsdata)
 
   return (
     <div className="min-h-screen bg-base text-ink font-sans flex flex-col">
@@ -118,11 +136,11 @@ export default function SubscriptionDetailsPage() {
             </div>
             <div>
               <span className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium border ${
-                data.subscriptionStatus 
+                userSubsdata?.subscriptionStatus 
                   ? 'bg-whatsapp/10 text-whatsapp border-whatsapp/20' 
                   : 'bg-[#ea4335]/10 text-[#ea4335] border-[#ea4335]/20'
               }`}>
-                {data.subscriptionStatus ? 'Active Subscription' : 'Inactive Subscription'}
+                {userSubsdata?.subscriptionStatus ? 'Active Subscription' : 'Inactive Subscription'}
               </span>
             </div>
           </div>
@@ -132,15 +150,15 @@ export default function SubscriptionDetailsPage() {
             {/* Plan Card */}
             <div className="bg-surface border border-line rounded-3xl p-6 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.5)]">
               <p className="text-sm font-medium text-muted uppercase tracking-wider">Current Plan</p>
-              <p className="text-xl font-bold text-ink mt-2">{data.plan}</p>
+              <p className="text-xl font-bold text-ink mt-2">{userSubsdata?.plan}</p>
             </div>
             
             {/* Validity Card */}
             <div className="bg-surface border border-line rounded-3xl p-6 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.5)]">
               <p className="text-sm font-medium text-muted uppercase tracking-wider">Validity</p>
               <div className="mt-2 text-sm text-ink font-medium space-y-1">
-                <p><span className="text-primary">Start:</span> {formatDate(data.startDate)}</p>
-                <p><span className="text-primary">End:</span> {formatDate(data.endDate)}</p>
+                <p><span className="text-primary">Start:</span> {formatDate(userSubsdata?.startDate)}</p>
+                <p><span className="text-primary">End:</span> {formatDate(userSubsdata?.endDate)}</p>
               </div>
             </div>
 
@@ -149,17 +167,17 @@ export default function SubscriptionDetailsPage() {
               <p className="text-sm font-medium text-muted uppercase tracking-wider mb-4">Credit Balance</p>
               <div className="flex items-center justify-between px-4">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-primary">{data.remainingCredits}</p>
+                  <p className="text-3xl font-bold text-primary">{userSubsdata?.remainingCredits}</p>
                   <p className="text-xs text-muted mt-1 uppercase font-semibold">Remaining</p>
                 </div>
                 <div className="w-px h-12 bg-line"></div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-muted">{data.usedCredits}</p>
+                  <p className="text-3xl font-bold text-muted">{userSubsdata?.usedCredits}</p>
                   <p className="text-xs text-muted mt-1 uppercase font-semibold">Used</p>
                 </div>
                 <div className="w-px h-12 bg-line"></div>
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-ink">{data.totalCredits}</p>
+                  <p className="text-3xl font-bold text-ink">{userSubsdata?.totalCredits}</p>
                   <p className="text-xs text-muted mt-1 uppercase font-semibold">Total</p>
                 </div>
               </div>
@@ -181,7 +199,7 @@ export default function SubscriptionDetailsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {currentPaymentLogs.map((log) => (
+                    {userSubsdata?.paymentLogs?.map((log: any) => (
                       <tr key={log.id} className="hover:bg-base/50 transition-colors">
                         <td className="px-4 py-3 text-ink font-medium">
                           {formatDate(log.createdAt)}
@@ -197,7 +215,7 @@ export default function SubscriptionDetailsPage() {
                         </td>
                       </tr>
                     ))}
-                    {currentPaymentLogs.length === 0 && (
+                    {!userSubsdata?.paymentLogs?.length && (
                       <tr>
                         <td colSpan={3} className="px-4 py-6 text-center text-muted">No records found.</td>
                       </tr>
@@ -207,9 +225,9 @@ export default function SubscriptionDetailsPage() {
               </div>
               
               {/* Payment Pagination Controls */}
-              {totalPaymentPages > 1 && (
+              {userSubsdata?.pagination?.paymentLogs.totalPages > 1 && (
                 <div className="mt-4 pt-4 border-t border-line flex items-center justify-between">
-                  <span className="text-xs text-muted">Page {paymentPage} of {totalPaymentPages}</span>
+                  <span className="text-xs text-muted">Page {paymentPage} of {userSubsdata?.pagination?.paymentLogs?.totalPages}</span>
                   <div className="flex gap-2">
                     <button 
                       disabled={paymentPage === 1} 
@@ -219,7 +237,7 @@ export default function SubscriptionDetailsPage() {
                       Prev
                     </button>
                     <button 
-                      disabled={paymentPage === 4} 
+                      disabled={paymentPage >= (userSubsdata?.pagination?.paymentLogs?.totalPages || 1)}
                       onClick={() => setPaymentPage(p => p + 1)}
                       className="px-3 py-1.5 rounded-lg border border-line text-xs font-medium text-ink disabled:opacity-50 hover:bg-base transition-colors"
                     >
@@ -244,7 +262,7 @@ export default function SubscriptionDetailsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line">
-                    {currentCreditLogs.map((log) => (
+                    {userSubsdata?.creditLogs?.map((log: any) => (
                       <tr key={log.id} className="hover:bg-base/50 transition-colors">
                         <td className="px-4 py-3 text-ink font-medium">
                           {formatDate(log.createdAt)}
@@ -260,7 +278,7 @@ export default function SubscriptionDetailsPage() {
                         </td>
                       </tr>
                     ))}
-                    {currentCreditLogs.length === 0 && (
+                    {!userSubsdata?.creditLogs?.length && (
                       <tr>
                         <td colSpan={3} className="px-4 py-6 text-center text-muted">No records found.</td>
                       </tr>
@@ -270,9 +288,9 @@ export default function SubscriptionDetailsPage() {
               </div>
 
               {/* Credit Pagination Controls */}
-              {totalCreditPages > 1 && (
+              {userSubsdata?.pagination?.creditLogs.totalPages > 1 && (
                 <div className="mt-4 pt-4 border-t border-line flex items-center justify-between">
-                  <span className="text-xs text-muted">Page {creditPage} of {totalCreditPages}</span>
+                  <span className="text-xs text-muted">Page {creditPage} of {userSubsdata?.pagination?.creditLogs.totalPages}</span>
                   <div className="flex gap-2">
                     <button 
                       disabled={creditPage === 1} 
@@ -282,7 +300,7 @@ export default function SubscriptionDetailsPage() {
                       Prev
                     </button>
                     <button 
-                      disabled={creditPage === totalCreditPages} 
+                      disabled={creditPage >= (userSubsdata?.pagination?.creditLogs?.totalPages || 1)}
                       onClick={() => setCreditPage(p => p + 1)}
                       className="px-3 py-1.5 rounded-lg border border-line text-xs font-medium text-ink disabled:opacity-50 hover:bg-base transition-colors"
                     >

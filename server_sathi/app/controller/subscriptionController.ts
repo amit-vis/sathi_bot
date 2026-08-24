@@ -118,7 +118,9 @@ export const createCreditController = async (req: any, res: any)=>{
 
 export const userWiseCreditController = async (req: any, res: any)=>{
     try {
-         const {paymentPage =1, creditPage =1, limit=10} = req.query;
+         const paymentPage = Number(req.query.paymentPage) || 1;
+        const creditPage = Number(req.query.creditPage) || 1;
+        const limit = Number(req.query.limit) || 10;
     if(!req.user.id){
         return res.status(400).json({
             message: "user id does not exist!",
@@ -134,6 +136,7 @@ export const userWiseCreditController = async (req: any, res: any)=>{
     })
         
     } catch (error) {
+        console.error(error)
         return res.status(500).json({
             message: "error in subscription fetching",
             error: error,
