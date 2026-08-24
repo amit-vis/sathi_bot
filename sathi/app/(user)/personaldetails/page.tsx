@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import HeaderWithProfile from "../component/headerProfile";
-import { getUser } from "@/app/auth/store";
-import { getAllSession } from "@/app/api/user";
+import { getUser, setAccessToken, setUser } from "@/app/auth/store";
+import { deleteSession, getAllSession } from "@/app/api/user";
+import { useRouter } from "next/navigation";
 
 export default function PersonalDetails() {
-
+  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false);
   const user = getUser();
   
@@ -15,15 +16,9 @@ export default function PersonalDetails() {
     organization: "Arush Eggs & Minerals",
   });
 
-  const staticData = {
-    email: "amit@example.com",
-    emailVerified: true,
-    accountStatus: "Active",
-  };
 
-  const [sessions, setSessions] = useState<any>([
 
-  ]);
+  const [sessions, setSessions] = useState<any>([]);
 
   // Yeh variable batayega ki konsa page abhi active hai (menu highlight karne ke liye)
 
@@ -37,8 +32,18 @@ export default function PersonalDetails() {
     setIsEditing(false);
   };
 
-  const handleLogoutSession = (sessionId: number) => {
-    setSessions(sessions.filter((session: any) => session.id !== sessionId));
+  const handleLogoutSession = async (familyId: string) => {
+    const session = sessions.find((s:any)=>s.familyId === familyId)
+     await deleteSession(familyId)
+     
+    if(session?.isCurrentDevice){
+      setAccessToken(null);
+      setUser(null);
+      router.push("/signin")
+    }else{
+      fetchSession();
+    }
+     return
   };
 
   const fetchSession = async ()=>{
@@ -52,7 +57,50 @@ export default function PersonalDetails() {
     }
   },[user])
 
-  console.log("here is the user", getUser())
+  // Relative time (e.g., "2 days ago")
+function formatSessionTime(dateString: string) {
+  const now: any = new Date();
+  const date: any = new Date(dateString);
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  // Abhi abhi
+  if (diffMins < 1) return "Just now";
+
+  // Minutes ago
+  if (diffMins < 60) return `${diffMins} min ago`;
+
+  // Hours ago
+  if (diffHours < 24) return `${diffHours} hours ago`;
+
+  // Yesterday
+  if (diffDays === 1) {
+    return "Yesterday at " + date.toLocaleString("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Kolkata",
+    });
+  }
+
+  // 2-6 days ago
+  if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  }
+
+  // Purane sessions — full date dikhao
+  return date.toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+}
 
   return (
     <div className="min-h-screen bg-base text-ink font-sans flex flex-col">
@@ -87,12 +135,12 @@ export default function PersonalDetails() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-muted mb-1">Registered Email</p>
-                    <p className="font-medium">{staticData.email}</p>
+                    <p className="font-medium">{user?.userEmail}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted mb-1">Email Verification</p>
                     <div className="flex items-center gap-2">
-                      {staticData.emailVerified ? (
+                      {user?.isEmailVerified ? (
                         <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-whatsapp/10 text-whatsapp text-sm font-medium border border-whatsapp/20">
                           <CheckCircleIcon /> Verified
                         </span>
@@ -106,7 +154,7 @@ export default function PersonalDetails() {
                   <div>
                     <p className="text-sm text-muted mb-1">Account Status</p>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-whatsapp/10 text-whatsapp text-sm font-medium border border-whatsapp/20">
-                       Active
+                       {user?.isBlocked?"Inactive": "Active"}
                     </span>
                   </div>
                 </div>
@@ -133,9 +181,11 @@ export default function PersonalDetails() {
                   <div>
                     <label className="block text-sm text-muted mb-1.5">Full Name</label>
                     {isEditing ? (
-                      <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full h-12 bg-base border border-line rounded-xl px-4 text-ink outline-none focus:border-primary focus:shadow-glow-violet transition-all" />
+                      <input type="text" name="name" 
+                      value={formData.name} 
+                      onChange={handleInputChange} className="w-full h-12 bg-base border border-line rounded-xl px-4 text-ink outline-none focus:border-primary focus:shadow-glow-violet transition-all" />
                     ) : (
-                      <p className="h-12 flex items-center px-4 bg-base/50 border border-transparent rounded-xl text-ink">{formData.name}</p>
+                      <p className="h-12 flex items-center px-4 bg-base/50 border border-transparent rounded-xl text-ink">{user?.userName}</p>
                     )}
                   </div>
 
@@ -144,7 +194,7 @@ export default function PersonalDetails() {
                     {isEditing ? (
                       <input type="text" name="mobile" value={formData.mobile} onChange={handleInputChange} className="w-full h-12 bg-base border border-line rounded-xl px-4 text-ink outline-none focus:border-primary focus:shadow-glow-violet transition-all" />
                     ) : (
-                      <p className="h-12 flex items-center px-4 bg-base/50 border border-transparent rounded-xl text-ink">{formData.mobile}</p>
+                      <p className="h-12 flex items-center px-4 bg-base/50 border border-transparent rounded-xl text-ink">{user?.userMobileNumber}</p>
                     )}
                   </div>
 
@@ -153,7 +203,7 @@ export default function PersonalDetails() {
                     {isEditing ? (
                       <input type="text" name="organization" value={formData.organization} onChange={handleInputChange} className="w-full h-12 bg-base border border-line rounded-xl px-4 text-ink outline-none focus:border-primary focus:shadow-glow-violet transition-all" />
                     ) : (
-                      <p className="h-12 flex items-center px-4 bg-base/50 border border-transparent rounded-xl text-ink">{formData.organization}</p>
+                      <p className="h-12 flex items-center px-4 bg-base/50 border border-transparent rounded-xl text-ink">{user?.organizationName}</p>
                     )}
                   </div>
                 </div>
@@ -190,11 +240,12 @@ export default function PersonalDetails() {
                         </div>
                         <p className="text-xs text-muted mt-1">IP: {session?.ip}</p>
                         <p className="text-xs text-muted">Location: {"India"}</p>
+                        <p className="text-xs text-muted">Time: {formatSessionTime(session?.createdAt)}</p>
                       </div>
 
                       {!session.isCurrent && (
                         <button 
-                          onClick={() => handleLogoutSession(session.id)}
+                          onClick={() => handleLogoutSession(session?.familyId)}
                           className="self-start text-xs font-medium text-[#ea4335] hover:bg-[#ea4335]/10 px-3 py-1.5 rounded-lg border border-transparent hover:border-[#ea4335]/30 transition-colors"
                         >
                           Log out

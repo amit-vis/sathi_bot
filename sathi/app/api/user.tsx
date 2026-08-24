@@ -23,5 +23,11 @@ export const LogoutUser = async ()=>{
 
 export const getAllSession = async ()=>{
   const res = await axiosInstance.get(`/user/sessions`);
+  
+  return res.data
+}
+
+export const deleteSession = async (familyId: string)=>{
+  const res = await axiosInstance.delete(`/user/sessions/${familyId}`);
   return res.data
 }

@@ -164,6 +164,7 @@ export const veriFyOTP = async (req: any, res: any) => {
         const accessToken = await issueTokens(res, existingUser, crypto.randomUUID(), req);
         await deleteOTP(existingUser.id);
         const provider = getEmailProvider(existingUser.userEmail!);
+        console.log("here is the provider", provider)
 try {
     if (provider === "gmail") {
         await mailaccesRealTime(existingUser.userEmail!);

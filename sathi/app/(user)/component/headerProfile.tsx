@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogoutUser } from "@/app/api/user";
 import { NavItem } from "./navItem";
 import { BackIcon, ChevronDownIcon, CreditCardIcon, HelpIcon, LogoutIcon, UserIcon } from "./icon";
+import { setAccessToken, setUser } from "@/app/auth/store";
 
 interface HeaderProps {
   activePage?: "personal_details" | "subscription_details" | "help_faq";
@@ -15,7 +16,13 @@ interface HeaderProps {
 export default function HeaderWithProfile({ activePage, userName, userEmail }: HeaderProps) {
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  console.log("here is the user Name", userName)
+  const handleLogout = async ()=>{
+    await LogoutUser();
+    setUser(null)
+    setAccessToken(null);
+    router.push("/signin");
+    return
+  }
 
   return (
     <header className="h-20 flex items-center justify-between px-6 md:px-10 border-b border-line bg-surface/80 backdrop-blur-md sticky top-0 z-40">
@@ -71,7 +78,7 @@ export default function HeaderWithProfile({ activePage, userName, userEmail }: H
 
               <div className="p-2 border-t border-line">
                 <button
-                  onClick={LogoutUser}
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#ea4335] hover:bg-[#ea4335]/10 transition-colors font-medium"
                 >
                   <LogoutIcon /> Sign Out
