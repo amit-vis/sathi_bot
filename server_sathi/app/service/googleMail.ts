@@ -5,6 +5,7 @@ import { createUser, getUserByMail, updatOTP, updatTokens } from "../model/user.
 import { decryptionToken, encryptToken, sendOTP } from "../config/helperfunction/userHelper.js";
 import { sendOTPackGmailQueue } from "./queue/gmailQueue.js";
 import bcrypt from "bcryptjs";
+import logger from "../utils/logger.js";
 
 const BUFFER_MS = 2 * 60 * 1000;
 
@@ -29,7 +30,12 @@ export const redirecTGmail = async (req: any, res: any) => {
         })
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
         return res.redirect(authUrl)
-    } catch (error) {
+    } catch (error: any) {
+        logger.error("Error in Gmail redirect", {
+            type: "GMAIL_OAUTH",
+            action: "redirecTGmail",
+            error: error.message
+        });
         console.error(error)
     }
 }
@@ -54,11 +60,18 @@ const createLables = async (accessToken: string, userEmail: string, lableName: s
             }
         );
         const newLabelId = response.data.id;
+        
         const newLabelName = response.data.name;
 
         console.log(`Label successfully created!`);
         console.log(`Label Name: ${newLabelName}`);
         console.log(`Label ID: ${newLabelId}`, response.data); // <-- Yeh rahi aapki label ki ID
+        logger.info("Gmail label created successfully", {
+            type: "GMAIL_LABEL",
+            action: "createLables",
+            email: userEmail,
+            details: { labelName: lableName, labelId: newLabelId }
+        });
 
         return newLabelId;
     } catch (error: any) {
@@ -73,6 +86,12 @@ const createLables = async (accessToken: string, userEmail: string, lableName: s
                 return existintLables.id; // Purani wali ID wapas kar do
             }
         }
+        logger.error(`Error creating label ${lableName}`, {
+            type: "GMAIL_LABEL",
+            action: "createLables",
+            email: userEmail,
+            error: error.message
+        });
         console.error(`Error creating label ${lableName}:`, error.message);
         throw error;
     }
@@ -91,7 +110,12 @@ const fetchUserInfo = async (accessToken: any) => {
 
         console.log("here is the userinfo", response.data)
         return response.data;
-    } catch (error) {
+    } catch (error: any) {
+        logger.error("Failed to fetch user info from Google", {
+            type: "GMAIL_AUTH",
+            action: "fetchUserInfo",
+            error: error.message
+        });
         console.error(error)
     }
 }
@@ -149,6 +173,11 @@ export const callbackUrl = async (req: any, res: any) => {
                     otpCode: encryptOTP || null,
                     otpExpiresAt: otpExpireTimestamp || null
                 })
+                logger.info("Existing user tokens updated", {
+                    type: "USER_AUTH",
+                    action: "callbackUrl",
+                    email: UserInfo?.email
+                });
             } else {
                 for (const label of lablesName) {
                     const labelId = await createLables(gmailToken, UserInfo?.email, label);
@@ -173,6 +202,12 @@ export const callbackUrl = async (req: any, res: any) => {
                     priority: 10
                 })
 
+                logger.info("New user onboarded successfully", {
+                    type: "USER_AUTH",
+                    action: "callbackUrl",
+                    email: UserInfo?.email
+                });
+
             }
 
             await sendOTPackGmailQueue.add("otp-sent", {
@@ -183,14 +218,24 @@ export const callbackUrl = async (req: any, res: any) => {
                 priority: 1
             })
 
-        } catch (error) {
+        } catch (error: any) {
+            logger.error("Failed to process user info in callback", {
+                type: "USER_AUTH",
+                action: "callbackUrl",
+                error: error.message
+            });
             console.error("Failed to fetch user info:", error);
             return res.status(500).json({ error: "Failed to fetch user information" });
         }
         return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(
             UserInfo?.email
         )}`)
-    } catch (error) {
+    } catch (error: any) {
+        logger.error("Gmail callback general error", {
+            type: "USER_AUTH",
+            action: "callbackUrl",
+            error: error.message
+        });
         console.error("Gmail callback error:", error);
         return res.status(500).json({ error: "Authentication failed" });
     }
@@ -201,7 +246,14 @@ export const generateNewAccessToken = async (userMail: string) => {
         const currentTimeStamp = Date.now() + BUFFER_MS;
         const record = await getUserByMail(userMail.trim().toLowerCase());
         console.log("lookup:", userMail, "→", record ? record.userEmail : "NOT FOUND");
-        if (!record) return null;
+        if (!record) {
+            logger.warn("User not found for token generation", {
+                type: "TOKEN_GENERATION",
+                action: "generateNewAccessToken",
+                email: userMail
+            });
+            return null;
+        }
 
         // access token abhi valid hai
         if (record.AccessToken &&
@@ -212,6 +264,11 @@ export const generateNewAccessToken = async (userMail: string) => {
 
         // refresh chahiye — pehle guard
         if (!record.mailRefreshToken) {
+            logger.error("No refresh token available, re-authorization needed", {
+                type: "TOKEN_GENERATION",
+                action: "generateNewAccessToken",
+                email: userMail
+            });
             console.error(`No refresh token for ${userMail} — re-authorize needed`);
             return null;
         }
@@ -236,9 +293,20 @@ export const generateNewAccessToken = async (userMail: string) => {
             updateData.mailRefreshToken = encryptToken(response.data.refresh_token);
         }
         await updatTokens(userMail, updateData);
+        logger.info("Access token refreshed successfully", {
+            type: "TOKEN_GENERATION",
+            action: "generateNewAccessToken",
+            email: userMail
+        });
 
         return newAccessToken;
     } catch (error: any) {
+        logger.error("Token refresh failed", {
+            type: "TOKEN_GENERATION",
+            action: "generateNewAccessToken",
+            email: userMail,
+            error: error?.response?.data || error?.message
+        });
         console.error("Token refresh failed:", error?.response?.data || error?.message);
         return null;
     }
@@ -552,12 +620,23 @@ export const notification = async (req: any, res: any) => {
         await gemailQueue.add("sync", payload, {
             jobId: `${payload.emailAddress}-${payload.historyId}`
         });
+        logger.info("Gmail push notification processed", {
+            type: "GMAIL_WEBHOOK",
+            action: "notification",
+            email: payload?.emailAddress,
+            historyId: payload?.historyId
+        });
         return res.status(200).json({
             ok: true
         })
 
 
-    } catch (error) {
+    } catch (error: any) {
+        logger.error("Webhook notification error", {
+            type: "GMAIL_WEBHOOK",
+            action: "notification",
+            error: error.message
+        });
         console.error(" Notification error:", error);
         return res.status(500).json({ message: "Server Error" });
     }
@@ -565,7 +644,12 @@ export const notification = async (req: any, res: any) => {
 
 export const mailaccesRealTime = async (userEmail: string) => {
     const accessToken = await generateNewAccessToken(userEmail);   // ✅ await
-    if (!accessToken) {                                            // ✅ ab yeh actual value check karega
+    if (!accessToken) {  
+        logger.error("Skipping watch registration due to missing token", {
+            type: "GMAIL_WATCH",
+            action: "mailaccesRealTime",
+            email: userEmail
+        });                                          // ✅ ab yeh actual value check karega
         console.error(`No token for ${userEmail} — watch skip`);
         return null;                                              // ✅ return zaroori — aage mat badho
     }
@@ -584,8 +668,19 @@ export const mailaccesRealTime = async (userEmail: string) => {
             }
         );
         console.log(`Watch registered for ${userEmail}:`, resdata.data);
+        logger.info("Watch registered successfully", {
+            type: "GMAIL_WATCH",
+            action: "mailaccesRealTime",
+            email: userEmail
+        });
         return resdata.data;
     } catch (error: any) {
+        logger.error("Gmail watch registration failed", {
+            type: "GMAIL_WATCH",
+            action: "mailaccesRealTime",
+            email: userEmail,
+            error: error?.response?.data || error?.message
+        });
         console.error("watch failed:", error?.response?.data || error?.message);
         throw error;
     }
@@ -669,13 +764,23 @@ export const stopUserwatch = async (req: any, res: any) => {
         });
 
         if (response.data.success) {
+            logger.info("User watch stopped successfully", {
+                type: "GMAIL_WATCH",
+                action: "stopUserwatch",
+                email: getUser.userEmail
+            });
             return res.status(200).json({
                 message: "User subscription stop successfully!",
                 success: true
             })
         }
 
-    } catch (error) {
+    } catch (error: any) {
+        logger.error("Error stopping Gmail watch", {
+            type: "GMAIL_WATCH",
+            action: "stopUserwatch",
+            error: error.message
+        });
         return res.status(500).json({
             message: "error in stoppin watch",
             error: error

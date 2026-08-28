@@ -6,6 +6,7 @@ import { checkVerdict, extracter } from "../genAi.js";
 import { createResearch } from "../../model/researchData.js";
 import { upsertDocument } from "../../model/document.js";
 import { getSubscriptionUserWise } from "../../model/subscription.js";
+import logger from "../../utils/logger.js";
 
 export const msQueue = new Queue("ms_extracted", {
     connection: redisConfig,
@@ -24,19 +25,38 @@ new Worker("ms_extracted", async (job: any) => {
     const getSubscriptionDetails = await getSubscriptionUserWise(job?.data?.userId);
     const currentDate = new Date();
     if (getSubscriptionDetails?.endDate && currentDate > getSubscriptionDetails.endDate!) {
+        logger.warn("Subscription ended, stopping worker extraction", {
+            type: "WORKER_EXTRACTION_MS",
+            userId: job?.data?.userId,
+            email: job?.data?.emailAddress
+        });
         console.error("your subscription account has been ended need to activate");
         return
     }
     if (!getSubscriptionDetails?.remainingCredits || getSubscriptionDetails.remainingCredits <= 0) {
+        logger.warn("Zero credits, stopping worker extraction", {
+            type: "WORKER_EXTRACTION_MS",
+            userId: job?.data?.userId,
+            email: job?.data?.emailAddress
+        });
         console.error("your credit count is zero need to recharge");
         return
     }
     if (!getSubscriptionDetails?.subscriptionStatus) {
+        logger.warn("Subscription inactive, stopping worker extraction", {
+            type: "WORKER_EXTRACTION_MS",
+            userId: job?.data?.userId,
+            email: job?.data?.emailAddress
+        });
         console.error("your subscription status is not active");
         return
     }
     const accessToekn = await generateNewAccessTokenOutlook(job?.data?.emailAddress);
     if (!accessToekn) {
+        logger.error("Missing token during worker run, skipping", {
+            type: "WORKER_EXTRACTION_MS",
+            email: job?.data?.emailAddress
+        });
         console.error(`No valid token for ${job?.data.emailAddress} — skipping, needs re-auth`);
         return;
     }
@@ -54,7 +74,11 @@ new Worker("ms_extracted", async (job: any) => {
     }
     if (blocked?.length > 0) {
         const ids = blocked.map(b => b.mail.messageId);
-        await markAsBotBlocked(accessToekn, ids, job.data.emailAddress)
+        await markAsBotBlocked(accessToekn, ids, job.data.emailAddress);
+        logger.info(`Blocked ${blocked.length} non-relevant messages`, {
+            type: "WORKER_EXTRACTION_MS",
+            email: job?.data?.emailAddress
+        });
     }
 
     for (const meta of allowed) {
@@ -92,6 +116,11 @@ new Worker("ms_extracted", async (job: any) => {
                     console.error(`⚠️ verdict.data is undefined — check Vertex AI / catch block format!`);
                 }
                 await markAsBotBlocked(accessToekn, [mail?.messageId], job?.data.emailAddress);
+                logger.info("Message blocked by LLM verdict (Non-Business)", {
+                    type: "LLM_VERDICT_MS",
+                    messageId: mail?.messageId,
+                    email: job?.data?.emailAddress
+                });
                 continue;
             }
             console.log(` LLM blocked: ${verdict.data.type} - ${verdict.data.confidence_score}-${verdict.data.isBusiness}`, verdict._meta);
@@ -113,8 +142,18 @@ new Worker("ms_extracted", async (job: any) => {
                     completeness: d.completeness,
                 }))
             })
-            await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress)
+            await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress);
+            logger.info("Successfully extracted and processed email", {
+                type: "WORKER_EXTRACTION_MS",
+                messageId: mail.messageId,
+                email: job?.data?.emailAddress
+            });
         } catch (error: any) {
+            logger.error("Error processing email in worker", {
+                type: "WORKER_EXTRACTION_MS",
+                messageId: meta.messageId,
+                error: error.message
+            });
             console.error("here is the error", error?.message)
 
         }

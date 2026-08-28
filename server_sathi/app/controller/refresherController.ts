@@ -2,6 +2,7 @@ import { getClientIp } from "../config/helperfunction/userHelper.js";
 import { clearCookieOptions, createRefreshToken, hashToken, REFRESH_COOKIE, refreshCookieOptions, refreshExpiry, signAccessToken } from "../config/tokens.js"
 import { consumeRefreshToken, findHash, insertRefreshToken, revokeFamily } from "../model/refreshToken.js";
 import { getUserByMail } from "../model/user.js";
+import logger from "../utils/logger.js";
 
 export const issueTokens = async (res: any, user: any, familyId: any, req: any) => {
     try {
@@ -15,14 +16,29 @@ export const issueTokens = async (res: any, user: any, familyId: any, req: any) 
             ip: req.ip
         });
 
+        logger.info("Issue Token", {
+            type: "ISSUE_TOKEN",
+            userId: user?.id,
+            action: "created New token",
+            details: "issue new token"
+        })
+
         res.cookie(REFRESH_COOKIE, raw, refreshCookieOptions);
         return signAccessToken(user)
     } catch (error: any) {
+        logger.error('Error updating plan', {
+            type: 'API_ERROR',
+            userId: req.user.id,
+            error: error.message,
+            stack: error.stack,
+            url: req.originalUrl
+        });
         throw error
     }
 }
 
 export const refresh = async (req: any, res: any) => {
+    let user: any = null; // moved outside try so catch can access it
     try {
         const raw = req.cookies?.[REFRESH_COOKIE];
         if (!raw) {
@@ -32,7 +48,7 @@ export const refresh = async (req: any, res: any) => {
         }
         const hash = hashToken(raw);
         const consumed = await consumeRefreshToken(hash);
-        // const ipAdd = getClientIp(req)
+
         if (!consumed) {
             const known = await findHash(hash);
             if (known?.used) {
@@ -49,7 +65,8 @@ export const refresh = async (req: any, res: any) => {
                 error: "INVALID_REFRESH_TOKEN"
             })
         }
-        const user = await getUserByMail(consumed.userId);
+
+        user = await getUserByMail(consumed.userId);
 
         if (!user) {
             res.clearCookie(REFRESH_COOKIE, clearCookieOptions);
@@ -59,8 +76,10 @@ export const refresh = async (req: any, res: any) => {
         }
 
         const accessToken = await issueTokens(res, user, consumed.familyId, req);
+        
         return res.json({ accessToken, user })
     } catch (error: any) {
+        
         return res.status(500).json({
             message: "error in refresh Token",
             error: error?.message

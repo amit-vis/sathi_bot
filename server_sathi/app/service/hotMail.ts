@@ -4,6 +4,7 @@ import { decryptionToken, encryptToken, sendOTP } from "../config/helperfunction
 import bcrypt from "bcryptjs";
 import { sendOTPackGmailQueue } from "./queue/gmailQueue.js";
 import { msQueue } from "./queue/msQueueExtract.js";
+import logger from "../utils/logger.js";
 
 const MICROSOFT_SCOPES = ["offline_access", "User.Read", "Mail.Read", "Mail.ReadWrite"];
 
@@ -17,9 +18,13 @@ export const redirectMicrosoft = async (req: any, res: any) => {
             prompt: "select_account"
         });
         const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
-        return res.redirect(authUrl)
-    } catch (error) {
-        console.error(error)
+        return res.redirect(authUrl);
+    } catch (error: any) {
+        logger.error("Error in outlook redirect", {
+            type: "HOTMAIL_OAUTH",
+            action: "redirectMicrosoft",
+            error: error.message
+        });
     }
 }
 
@@ -36,12 +41,17 @@ export const createFolder = async (accessToken: string, folderName: string) => {
             }
         );
         const newFolderId = response.data.id;
-        console.log(`Folder successfully created! Name: ${folderName}`);
+        
+        logger.info("Microsoft folder created successfully", {
+            type: "OUTLOOK_FOLDER",
+            action: "createFolder",
+            details: { folderName: folderName, folderId: newFolderId }
+        });
+        
         return newFolderId;
     } catch (error: any) {
         const isConflict = error.response?.status === 409 || error.response?.data?.error?.code === "ErrorFolderExists";
         if (isConflict) {
-            console.log(`Folder "${folderName}" already exists. Fetching existing ID...`);
             const listResponse = await axios.get(`https://graph.microsoft.com/v1.0/me/mailFolders`, {
                 headers: { Authorization: `Bearer ${accessToken}` }
             });
@@ -49,11 +59,14 @@ export const createFolder = async (accessToken: string, folderName: string) => {
             const existingFolder = listResponse.data.value.find(
                 (f: any) => f.displayName.toLowerCase() === folderName.toLowerCase()
             );
-            if (existingFolder) {
-                return existingFolder.id;
-            }
+            if (existingFolder) return existingFolder.id;
         }
-        console.error(`Error creating folder ${folderName}:`, error.response?.data || error.message);
+        
+        logger.error(`Error creating folder ${folderName}`, {
+            type: "OUTLOOK_FOLDER",
+            action: "createFolder", 
+            error: error.message
+        });
         throw error;
     }
 }
@@ -69,14 +82,16 @@ export const fetchUserInfoMicrosoft = async (accessToken: string) => {
             }
         );
 
-        console.log("here is the Microsoft userinfo", response.data);
-        // Microsoft Graph returns 'userPrincipalName' (or 'mail') and 'displayName'
         return {
             email: response.data.userPrincipalName || response.data.mail,
             name: response.data.displayName
         };
-    } catch (error) {
-        console.error(error);
+    } catch (error: any) {
+        logger.error("Failed to fetch user info from Microsoft", {
+            type: "OUTLOOK_AUTH",
+            action: "fetchUserInfoMicrosoft",
+            error: error.message
+        });
     }
 }
 const newExpiration = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
@@ -99,8 +114,6 @@ export const Subscription = async (accessToken: string) => {
 
 export const callbackUrlMicrosoft = async (req: any, res: any) => {
     try {
-
-        console.log("=== CALLBACK HIT ===", req.query);
         const { code } = req.query;
         if (!code) {
             return res.status(400).json({ error: "No authorization code provided" });
@@ -118,12 +131,10 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
             `https://login.microsoftonline.com/common/oauth2/v2.0/token`,
             tokenParams.toString(),
             {
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                }
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
             }
         );
-        console.log("here is the complete response", tokenResponse.data)
+        
         const msAccessToken = tokenResponse.data.access_token;
         const msRefreshToken = tokenResponse.data.refresh_token;
         const expiresInMs = tokenResponse.data.expires_in * 1000;
@@ -132,34 +143,39 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
         let UserInfo;
         const folderNames = ["bot_accessed", "bot_blocked"];
         let folderId = [];
+        
         try {
-            UserInfo = await fetchUserInfoMicrosoft(msAccessToken)
+            UserInfo = await fetchUserInfoMicrosoft(msAccessToken);
             user = await getUserByMail(UserInfo?.email);
-            const otp = sendOTP()
-            const encryptOTP = await bcrypt.hashSync(otp, 10)
-            const futeureMinute = 10 * 60 * 1000
+            const otp = sendOTP();
+            const encryptOTP = await bcrypt.hashSync(otp, 10);
+            const futeureMinute = 10 * 60 * 1000;
             const otpExpireTimestamp = new Date(Date.now() + futeureMinute);
             const encryptedAccessToken = encryptToken(msAccessToken);
             const encryptedRefrshToken = encryptToken(msRefreshToken);
+            
             if (user) {
-                user = await updatTokens(UserInfo?.email,
-                    {
-                        AccessToken: encryptedAccessToken,
-                        mailRefreshToken: encryptedRefrshToken,
-                        ExpiryTimestamp: expiresAt,
-
-                    }
-                )
+                user = await updatTokens(UserInfo?.email, {
+                    AccessToken: encryptedAccessToken,
+                    mailRefreshToken: encryptedRefrshToken,
+                    ExpiryTimestamp: expiresAt,
+                });
 
                 await updatOTP(UserInfo?.email, {
                     otpCode: encryptOTP || null,
                     otpExpiresAt: otpExpireTimestamp || null
-                })
+                });
+                
+                logger.info("Existing Outlook user tokens updated", {
+                    type: "USER_AUTH",
+                    action: "callbackUrlMicrosoft",
+                    email: UserInfo?.email
+                });
             } else {
-                const subscriptionId = await Subscription(msAccessToken)
+                const subscriptionId = await Subscription(msAccessToken);
                 for (const label of folderNames) {
                     const labelId = await createFolder(msAccessToken, label);
-                    folderId.push(labelId)
+                    folderId.push(labelId);
                 }
                 user = await createUser({
                     userEmail: UserInfo?.email,
@@ -177,27 +193,37 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
                 await sendOTPackGmailQueue.add("onboard-mail", {
                     type: "onboard",
                     to: UserInfo?.email
-                }, {
-                    priority: 10
-                })
+                }, { priority: 10 });
+                
+                logger.info("New Outlook user onboarded successfully", {
+                    type: "USER_AUTH",
+                    action: "callbackUrlMicrosoft",
+                    email: UserInfo?.email
+                });
             }
+            
             await sendOTPackGmailQueue.add("otp-sent", {
                 type: "otp",
                 to: UserInfo?.email,
                 otp: otp
-            }, {
-                priority: 1
-            })
-        } catch (error) {
-            console.error("Microsoft callback error:", error);
+            }, { priority: 1 });
+            
+        } catch (error: any) {
+            logger.error("Failed to process Outlook user info in callback", {
+                type: "USER_AUTH",
+                action: "callbackUrlMicrosoft",
+                error: error.message
+            });
             return res.status(500).json({ error: "Authentication failed" });
         }
 
-        return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(
-            UserInfo?.email
-        )}`)
+        return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(UserInfo?.email)}`);
     } catch (error: any) {
-        console.error("OUTER CATCH ERROR:", error?.response?.data || error.message);
+        logger.error("Outlook callback general error", {
+            type: "USER_AUTH",
+            action: "callbackUrlMicrosoft",
+            error: error?.response?.data || error.message
+        });
         return res.status(500).json({ error: "Authentication failed" });
     }
 }
@@ -208,37 +234,41 @@ export const generateNewAccessTokenOutlook = async (userMail: string) => {
     try {
         const currentTimeStamp = Date.now() + BUFFER_MS;
         const record = await getUserByMail(userMail.trim().toLowerCase());
-        console.log("lookup:", userMail, "→", record ? record.userEmail : "NOT FOUND");
-        if (!record) return null;
+        
+        if (!record) {
+            logger.warn("User not found for Outlook token generation", {
+                type: "TOKEN_GENERATION",
+                action: "generateNewAccessTokenOutlook",
+                email: userMail
+            });
+            return null;
+        }
 
-        // access token abhi valid hai
-        if (record.AccessToken &&
-            record.ExpiryTimestamp &&
-            record.ExpiryTimestamp.getTime() > currentTimeStamp) {
+        if (record.AccessToken && record.ExpiryTimestamp && record.ExpiryTimestamp.getTime() > currentTimeStamp) {
             return decryptionToken(record.AccessToken);
         }
 
-        // refresh chahiye — pehle guard
         if (!record.mailRefreshToken) {
-            console.error(`No refresh token for ${userMail} — re-authorize needed`);
+            logger.error("No refresh token available, re-authorization needed for Outlook", {
+                type: "TOKEN_GENERATION",
+                action: "generateNewAccessTokenOutlook",
+                email: userMail
+            });
             return null;
         }
 
         const refreshToken = decryptionToken(record.mailRefreshToken);
 
-        // Microsoft token endpoint — "common" supports personal + work accounts
         const response = await axios.post(
             'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-            new URLSearchParams({                          // ⚠️ Microsoft ko x-www-form-urlencoded chahiye
+            new URLSearchParams({
                 client_id: process.env.MICROSOFT_CLIENT_ID!,
                 client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
                 refresh_token: refreshToken,
                 grant_type: 'refresh_token',
                 scope: 'https://graph.microsoft.com/.default offline_access',
             }),
-            {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            }
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
         );
 
         const newAccessToken = response.data.access_token;
@@ -248,15 +278,26 @@ export const generateNewAccessTokenOutlook = async (userMail: string) => {
             AccessToken: encryptToken(newAccessToken),
             ExpiryTimestamp: expiresAt,
         };
-        // Microsoft har refresh pe naya refresh token de sakta hai
+        
         if (response.data.refresh_token) {
             updateData.mailRefreshToken = encryptToken(response.data.refresh_token);
         }
         await updatTokens(userMail, updateData);
+        
+        logger.info("Outlook access token refreshed successfully", {
+            type: "TOKEN_GENERATION",
+            action: "generateNewAccessTokenOutlook",
+            email: userMail
+        });
 
         return newAccessToken;
     } catch (error: any) {
-        console.error("Outlook token refresh failed:", error?.response?.data || error?.message);
+        logger.error("Outlook token refresh failed", {
+            type: "TOKEN_GENERATION",
+            action: "generateNewAccessTokenOutlook",
+            email: userMail,
+            error: error?.response?.data || error?.message
+        });
         return null;
     }
 };
@@ -361,6 +402,7 @@ export const markAsProcessed = async (
         console.log(`✅ Successfully marked ${messageIds.length} as processed`);
         return true;
     } catch (error: any) {
+        logger.error(`Error marking as processed`, { error: error?.message });
         const status = error?.response?.status;
         console.error(`Error marking as processed (${status}):`, error?.message);
 
@@ -403,6 +445,7 @@ export const markAsBotBlocked = async (
         console.log(`✅ Successfully marked ${messageIds.length} as bot_blocked`);
         return true;
     } catch (error: any) {
+        logger.error(`Error marking as bot_blocked`, { error: error?.message });
         const status = error?.response?.status;
         console.error(`Error marking as bot_blocked (${status}):`, error?.message);
         if (status === 403) {
@@ -533,6 +576,11 @@ export const getMessages = async (
 export const mailAccessRealTimeOutlook = async (userEmail: string) => {
     const accessToken = await generateNewAccessTokenOutlook(userEmail);
     if (!accessToken) {
+        logger.error("Skipping watch registration due to missing token", {
+            type: "OUTLOOK_WATCH",
+            action: "mailAccessRealTimeOutlook",
+            email: userEmail
+        });
         console.error(`No token for ${userEmail} — subscription skip`);
         return null;
     }
@@ -558,11 +606,22 @@ export const mailAccessRealTimeOutlook = async (userEmail: string) => {
         );
 
         console.log(`Subscription registered for ${userEmail}:`, resdata.data);
+        logger.info("Outlook subscription registered successfully", {
+            type: "OUTLOOK_WATCH",
+            action: "mailAccessRealTimeOutlook",
+            email: userEmail
+        });
         return resdata.data;
 
         // ⚠️ IMPORTANT: resdata.data.id save karo DB mein —
         // renew/delete ke liye subscription ID chahiye
     } catch (error: any) {
+        logger.error("Outlook subscription registration failed", {
+            type: "OUTLOOK_WATCH",
+            action: "mailAccessRealTimeOutlook",
+            email: userEmail,
+            error: error?.response?.data || error?.message
+        });
         console.error("Subscription failed:", error?.response?.data || error?.message);
         throw error;
     }
@@ -590,9 +649,20 @@ export const renewSubscription = async (subscriptionId: string, userEmail: strin
         );
 
         console.log(`Subscription renewed for ${userEmail}`);
+        logger.info("Outlook subscription renewed successfully", {
+            type: "OUTLOOK_WATCH",
+            action: "renewSubscription",
+            email: userEmail
+        });
         return response.data;
     } catch (error: any) {
         console.error("Renew failed:", error?.response?.data || error?.message);
+        logger.error("Outlook subscription renewal failed", {
+            type: "OUTLOOK_WATCH",
+            action: "renewSubscription",
+            email: userEmail,
+            error: error?.response?.data || error?.message
+        });
         return null;
     }
 };
@@ -700,12 +770,22 @@ export const stopUserWatch = async (req: any, res: any) => {
 
         // DB se bhi remove karo
         // await updateUser(getUser.userEmail, { outlookSubscriptionId: null });
+        logger.info("Outlook watch stopped successfully", {
+            type: "OUTLOOK_WATCH",
+            action: "stopUserWatch",
+            email: getUser.userEmail
+        });
 
         return res.status(200).json({
             message: "User subscription stopped successfully!",
             success: true,
         });
     } catch (error: any) {
+        logger.error("Error stopping Outlook watch", {
+            type: "OUTLOOK_WATCH",
+            action: "stopUserWatch",
+            error: error?.response?.data || error?.message
+        });
         return res.status(500).json({
             message: "Error stopping subscription",
             error: error?.response?.data || error?.message,
@@ -730,6 +810,10 @@ export const notification = async (req: any, res: any) => {
         for (const notifi of notifications) {
             // clientState verify karo (tamper protection)
             if (notifi.clientState !== "sathi_bot_secret") {
+                logger.warn("Invalid clientState in webhook notification", {
+                    type: "OUTLOOK_WEBHOOK",
+                    action: "notification"
+                });
                 console.warn("Invalid clientState — ignoring");
                 continue;
             }
@@ -738,13 +822,17 @@ export const notification = async (req: any, res: any) => {
              const messageId = notifi.resourceData?.id
 
             const userData = await getUserDatasubscription(subscriptionId);
-
-            await msQueue.add("msSync", {emailAddress: userData?.userEmail, userId:userData?.id},{
-                jobId: `${userData?.userEmail}-${messageId}`
-            })
-
-
-
+            if (userData) {
+                await msQueue.add("msSync", { emailAddress: userData?.userEmail, userId: userData?.id }, {
+                    jobId: `${userData?.userEmail}-${messageId}`
+                });
+                
+                logger.info("Outlook push notification processed", {
+                    type: "OUTLOOK_WEBHOOK",
+                    action: "notification",
+                    email: userData?.userEmail
+                });
+            }
             // Yahan se tumhara existing processing logic call hoga
             // e.g., processNewEmail(messageId, notification)
             console.log(`New mail notification: ${subscriptionId}`);
@@ -753,6 +841,11 @@ export const notification = async (req: any, res: any) => {
         // Graph ko 202 within 3 seconds chahiye, warna retry karega
         return res.status(202).send();
     } catch (error: any) {
+        logger.error("Outlook webhook notification error", {
+            type: "OUTLOOK_WEBHOOK",
+            action: "notification",
+            error: error?.message
+        });
         console.error("Webhook error:", error?.message);
         return res.status(202).send(); // still 202, retry se bachne ke liye
     }

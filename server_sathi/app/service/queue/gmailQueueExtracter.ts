@@ -6,6 +6,7 @@ import { checkVerdict, extracter } from "../genAi.js"
 import { upsertDocument } from "../../model/document.js";
 import { createResearch } from "../../model/researchData.js";
 import { createCredit, getSubscriptionUserWise } from "../../model/subscription.js";
+import logger from "../../utils/logger.js";
 
 export const redisConfig: any = {
     host: "localhost",
@@ -32,21 +33,36 @@ new Worker("extracted_data", async (job: any) => {
     const getSubscriptionDetails = await getSubscriptionUserWise(job?.data?.userId);
       const currentDate = new Date();
     if(getSubscriptionDetails?.endDate && currentDate>getSubscriptionDetails.endDate!){
-      console.error("your subscription account has been ended need to activate");
+      logger.warn("Subscription ended, stopping worker extraction", {
+            type: "WORKER_EXTRACTION",
+            userId: job?.data?.userId,
+            email: job?.data?.emailAddress
+        });
       return
     }
     if(!getSubscriptionDetails?.remainingCredits || getSubscriptionDetails.remainingCredits <= 0){
-    console.error("your credit count is zero need to recharge");
+    logger.warn("Zero credits, stopping worker extraction", {
+            type: "WORKER_EXTRACTION",
+            userId: job?.data?.userId,
+            email: job?.data?.emailAddress
+        });
     return
 }
     if(!getSubscriptionDetails?.subscriptionStatus){
-      console.error("your subscription status is not active");
+      logger.warn("Subscription inactive, stopping worker extraction", {
+            type: "WORKER_EXTRACTION",
+            userId: job?.data?.userId,
+            email: job?.data?.emailAddress
+        });
       return
     }
 
     const accessToekn = await generateNewAccessToken(job?.data.emailAddress) as any;
     if (!accessToekn) {
-        console.error(`No valid token for ${job?.data.emailAddress} — skipping, needs re-auth`);
+        logger.error("Missing token during worker run, skipping", {
+            type: "WORKER_EXTRACTION",
+            email: job?.data?.emailAddress
+        });
         return;   // job gracefully khatam, crash nahi
     }
     const messages = await getAllUnreadMessages(accessToekn);
@@ -69,7 +85,11 @@ new Worker("extracted_data", async (job: any) => {
     console.log(` ${metas.length} → ${allowed.length} bache, ${blocked.length} block`);
     if (blocked?.length > 0) {
         const ids = blocked.map(b => b.mail.messageId);
-        await markAsbotBlocked(accessToekn, ids, job.data.emailAddress)
+        await markAsbotBlocked(accessToekn, ids, job.data.emailAddress);
+        logger.info(`Blocked ${blocked.length} non-relevant messages`, {
+            type: "WORKER_EXTRACTION",
+            email: job?.data?.emailAddress
+        });
 
     }
 
@@ -105,6 +125,10 @@ new Worker("extracted_data", async (job: any) => {
             if (!verdict?.data?.isBusiness) {
                 console.log(` LLM blocked: ${mail.subject}`);
                 await markAsbotBlocked(accessToekn, [mail?.messageId], job?.data.emailAddress);
+                logger.info(`Blocked ${blocked.length} non-relevant messages`, {
+            type: "WORKER_EXTRACTION",
+            email: job?.data?.emailAddress
+        });
                 continue
             }
 
@@ -137,7 +161,17 @@ new Worker("extracted_data", async (job: any) => {
             })
 
             await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress);
+            logger.info("Successfully extracted and processed email", {
+                type: "WORKER_EXTRACTION",
+                messageId: mail.messageId,
+                email: job?.data?.emailAddress
+            });
         } catch (error: any) {
+            logger.error("Error processing email in worker", {
+                type: "WORKER_EXTRACTION",
+                messageId: meta.messageId,
+                error: error.message
+            });
             console.error("here is the error", error?.message)
         }
     }

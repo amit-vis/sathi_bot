@@ -193,16 +193,6 @@ export async function upsertDocument(userId: string, doc: any, messageId: any,do
     linkedDocuments: { deleteMany: {}, create: mapLinked(doc) },
   };
  
-  // const canUpsert = !!doc.document_type && !!doc.document_number;
- 
-  // if (!canUpsert) {
-  //   // No usable natural key -> always insert.
-  //   return prisma.document.create({
-  //     data: { userId, ...scalars, ...childrenCreate },
-  //     include: { parties: true, items: true, taxes: true, linkedDocuments: true },
-  //   });
-  // }
- 
   return prisma.document.upsert({
     where: {
       userId_messageId_docIndex: { userId, messageId, docIndex },   // 👈 naya key
@@ -213,3 +203,4 @@ export async function upsertDocument(userId: string, doc: any, messageId: any,do
     include: { parties: true, items: true, taxes: true, linkedDocuments: true },
   });
 }
+

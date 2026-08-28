@@ -43,12 +43,12 @@ const user = getUser()
         </nav>
 
         {/* Bottom Sidebar Area (Optional, for settings/logout) */}
-        <div className="p-4 border-t border-line">
+        {/* <div className="p-4 border-t border-line">
           <button className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-muted hover:text-ink transition-colors">
             <SettingsIcon />
             <span className="text-[15px] font-medium">Settings</span>
           </button>
-        </div>
+        </div> */}
       </aside>
 
       {/* --- Main Content Area --- */}
@@ -91,7 +91,7 @@ const user = getUser()
 
 // --- Icons Components ---
 
-function HomeIcon() {
+export function HomeIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>

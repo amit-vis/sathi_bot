@@ -6,9 +6,10 @@ import { LogoutUser } from "@/app/api/user";
 import { NavItem } from "./navItem";
 import { BackIcon, ChevronDownIcon, CreditCardIcon, HelpIcon, LogoutIcon, UserIcon } from "./icon";
 import { setAccessToken, setUser } from "@/app/auth/store";
+import { HomeIcon } from "../dashboard/page";
 
 interface HeaderProps {
-  activePage?: "personal_details" | "subscription_details" | "help_faq";
+  activePage?: "personal_details" | "subscription_details" | "help_faq" | "dashboard";
   userName: string;
   userEmail: string;
 }
@@ -56,6 +57,12 @@ export default function HeaderWithProfile({ activePage, userName, userEmail }: H
               </div>
 
               <div className="p-2 space-y-1">
+               <NavItem
+                  label="dashboard"
+                  icon={<HomeIcon />}
+                  active={activePage === "dashboard"}
+                  onClick={() => { setIsProfileOpen(false); router.push("/dashboard"); }}
+                />
                 <NavItem
                   label="Personal Details"
                   icon={<UserIcon />}
