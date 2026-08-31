@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createUser, deleteOTP, getUserByMail, updatOTP, updatTokens } from "../model/user.js";
+import { createUser, deleteOTP, getUserByMail, updatePersonalDetails, updatOTP, updatTokens } from "../model/user.js";
 import { issueTokens } from "./refresherController.js";
 import { clearCookieOptions, hashToken, REFRESH_COOKIE } from "../config/tokens.js";
 import { findHash, listSessions, revokeAllForUser, revokeFamily } from "../model/refreshToken.js";
@@ -199,9 +199,9 @@ export const veriFyOTP = async (req: any, res: any) => {
         const provider = getEmailProvider(existingUser.userEmail!);
         
         try {
-            if (provider === "gmail") {
+            if (existingUser.mailType === "gmail") {
                 await mailaccesRealTime(existingUser.userEmail!);
-            } else if ( process.env.OUTLOOK_WEBHOOK_URL) {
+            } else if ( existingUser.mailType === "outlook") {
                 await mailAccessRealTimeOutlook(existingUser.userEmail!);
             } else {
                 logger.warn("No mail subscription available for provider", {
@@ -245,6 +245,29 @@ export const veriFyOTP = async (req: any, res: any) => {
             message: "errorn in verify otp",
             success: false
         })
+    }
+}
+
+export const resendOTP = async (req: any, res: any)=>{
+    try {
+        const { identifier } = req.params;
+        const { otp } = req.body;
+        if (!identifier) {
+            return res.status(400).json({
+                message: "required phone or email id",
+                success: false
+            })
+        }
+
+        const existingUser = await getUserByMail(identifier);
+        if (!existingUser) {
+            return res.status(401).json({
+                message: "user does not exist",
+                success: false
+            })
+        }
+    } catch (error) {
+        
     }
 }
 
@@ -382,3 +405,38 @@ export const deleteSession = async (req: any, res: any) => {
         })
     }
 }
+
+export const userDetailsUpdateController = async (req: any, res: any) => {
+  try {
+    if (!req.user?.id) {      // 👈 optional chaining lagao
+      return res.status(401).json({
+        message: "User does not exist",
+        success: false,
+      });
+    }
+
+    const updateData = req.body;  // 👈 directly body le lo, destructure mat karo
+
+    if (!updateData || Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        message: "No data provided to update",
+        success: false,
+      });
+    }
+
+    const updateUserDetails = await updatePersonalDetails(updateData, req.user.id);
+
+    return res.status(200).json({
+      message: "User personal details updated successfully!",
+      success: true,
+      data: updateUserDetails,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Error in updating user personal details",
+      success: false,     // 👈 false hona chahiye
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+};

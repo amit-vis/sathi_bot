@@ -1,6 +1,40 @@
+import { useRouter } from "next/navigation";
 import { CloseIcon, WhatsAppIcon } from "./configbutton";
+import { getAccessToken } from "@/app/auth/store";
 
 export function PaymentModal({ plan, onClose }: { plan: any; onClose: () => void }) {
+  const router = useRouter();
+  const accessToken = getAccessToken();
+
+    if (!accessToken) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="w-full max-w-sm rounded-3xl border border-line bg-surface p-8 shadow-2xl text-center">
+          <h2 className="text-xl font-semibold text-ink mb-2">Sign In Required</h2>
+          <p className="text-sm text-muted mb-6">
+            Sign in to proceed with payment
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={onClose}
+              className="px-5 py-2.5 text-sm font-medium rounded-full border border-line text-muted hover:text-ink transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                router.push("/signin");
+              }}
+              className="px-5 py-2.5 text-sm font-medium rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   const handlePaymentConfirmation = () => {
     // Apna WhatsApp business number yahan daal dena

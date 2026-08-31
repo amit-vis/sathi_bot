@@ -204,3 +204,76 @@ export async function upsertDocument(userId: string, doc: any, messageId: any,do
   });
 }
 
+// model - sirf data return karo
+// model/document.ts
+
+// 👇 LIST - saare documents with filters
+export const getDocumentByUserId = async (
+  userId: string,
+  page = 1,
+  limit = 20,
+  filters?: {
+    startDate?: Date | string;
+    endDate?: Date | string;
+    documentNumber?: string;
+    documentType?: string;
+  }
+) => {
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.DocumentWhereInput = {
+    userId,
+
+    ...(filters?.startDate || filters?.endDate
+      ? {
+          createdAt: {
+            ...(filters.startDate && { gte: new Date(filters.startDate) }),
+            ...(filters.endDate && { lte: new Date(filters.endDate) }),
+          },
+        }
+      : {}),
+
+    ...(filters?.documentNumber && {
+      documentNumber: {
+        contains: filters.documentNumber,
+        mode: "insensitive" as Prisma.QueryMode,
+      },
+    }),
+
+    ...(filters?.documentType && {
+      documentType: filters.documentType as any,
+    }),
+  };
+
+  const [docRows, total] = await prisma.$transaction([
+    prisma.document.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.document.count({ where }),
+  ]);
+
+  return { docRows, total };
+};
+
+// 👇 SINGLE - ek document with all relations (YE MISSING THA)
+export const getDocumentById = async (documentId: string, userId: string) => {
+  const document = await prisma.document.findFirst({
+    where: {
+      id: documentId,
+      userId,
+    },
+    include: {
+      parties: true,
+      items: {
+        orderBy: { lineNo: "asc" },
+      },
+      taxes: true,
+      linkedDocuments: true,
+    },
+  });
+
+  return document;
+};

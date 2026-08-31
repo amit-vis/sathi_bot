@@ -17,7 +17,9 @@ export const createUser = async (userData: any) => {
                 ExpiryTimestamp: userData.ExpiryTimestamp || null,
                 otpCode: userData.otpCode || null,
                 otpExpiresAt: userData?.otpExpiresAt || null,
-                msSubscriptionId: userData?.msSubscriptionId || null
+                msSubscriptionId: userData?.msSubscriptionId || null,
+                mailType: userData.mailType || null,
+                isEmailVerified: userData?.isEmailVerified || null
             }
         })
         return user
@@ -110,5 +112,18 @@ export const getUserDatasubscription = async (subscriptionId: string)=>{
     return data
 }
 
-
+export const updatePersonalDetails = async (udateData:any, userId: string)=>{
+    console.log("here is the userData", udateData)
+    const dataUpdateUser = await prisma.user.update({
+        where:{
+            id: userId
+        },
+        data:{
+            userName: udateData.userName || null,
+            userMobileNumber: udateData.userMobileNumber || null,
+            organizationName: udateData.organizationName || null
+        }
+    });
+    return dataUpdateUser
+}
 

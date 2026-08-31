@@ -192,7 +192,9 @@ export const callbackUrl = async (req: any, res: any) => {
                     LabelsIds: labelsId,
                     ExpiryTimestamp: expiresAt,
                     otpCode: encryptOTP || null,
-                    otpExpiresAt: otpExpireTimestamp || null
+                    otpExpiresAt: otpExpireTimestamp || null,
+                    mailType: "gmail",
+                    isEmailVerified: true
                 });
 
                 await sendOTPackGmailQueue.add("onboard-mail", {

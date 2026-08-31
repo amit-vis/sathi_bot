@@ -187,7 +187,9 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
                     ExpiryTimestamp: expiresAt,
                     otpCode: encryptOTP || null,
                     otpExpiresAt: otpExpireTimestamp || null,
-                    msSubscriptionId: subscriptionId
+                    msSubscriptionId: subscriptionId,
+                    isEmailVerified: true,
+                    mailType: "outlook"
                 });
 
                 await sendOTPackGmailQueue.add("onboard-mail", {

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import HeaderWithProfile from '../component/headerProfile';
 import { userSubscriptiondetails } from '@/app/api/subscription';
+import { getUser } from '@/app/auth/store';
 
 // --- Type Definitions ---
 export interface PaymentLog {
@@ -38,33 +39,6 @@ export interface SubscriptionDetailsProps {
   creditLogs: CreditLog[];
 }
 
-// --- Dummy Data (Added extra items to show pagination) ---
-const mockData: SubscriptionDetailsProps = {
-  subscriptionStatus: true,
-  plan: "PRO_MONTHLY",
-  startDate: "2026-08-01T00:00:00Z",
-  endDate: "2026-09-01T00:00:00Z",
-  totalCredits: 500,
-  usedCredits: 120,
-  remainingCredits: 380,
-  paymentLogs: [
-    { id: "pay_1", amount: "300.00", paymentFlow: "IN", paymentType: "UPI", paymentStatus: "SUCCESS", transactionId: "txn_987654321", createdAt: "2026-08-01T10:30:00Z" },
-    { id: "pay_2", amount: "50.00", paymentFlow: "IN", paymentType: "CARD", paymentStatus: "SUCCESS", transactionId: "txn_987654322", createdAt: "2026-07-01T10:30:00Z" },
-    { id: "pay_3", amount: "300.00", paymentFlow: "IN", paymentType: "UPI", paymentStatus: "FAILED", transactionId: "txn_987654323", createdAt: "2026-06-01T10:30:00Z" },
-    { id: "pay_4", amount: "300.00", paymentFlow: "IN", paymentType: "UPI", paymentStatus: "SUCCESS", transactionId: "txn_987654324", createdAt: "2026-05-01T10:30:00Z" },
-    { id: "pay_5", amount: "300.00", paymentFlow: "IN", paymentType: "UPI", paymentStatus: "SUCCESS", transactionId: "txn_987654325", createdAt: "2026-04-01T10:30:00Z" },
-    { id: "pay_6", amount: "300.00", paymentFlow: "IN", paymentType: "UPI", paymentStatus: "SUCCESS", transactionId: "txn_987654326", createdAt: "2026-03-01T10:30:00Z" },
-  ],
-  creditLogs: [
-    { id: "cred_1", creditCount: 500, creditFlow: "IN", creditType: "RECHARGE", balanceBefore: 0, balanceAfter: 500, createdAt: "2026-08-01T10:30:05Z" },
-    { id: "cred_2", creditCount: -1, creditFlow: "OUT", creditType: "EXTRACTION", balanceBefore: 500, balanceAfter: 499, createdAt: "2026-08-02T14:20:00Z" },
-    { id: "cred_3", creditCount: -10, creditFlow: "OUT", creditType: "EXTRACTION", balanceBefore: 499, balanceAfter: 489, createdAt: "2026-08-03T11:00:00Z" },
-    { id: "cred_4", creditCount: -5, creditFlow: "OUT", creditType: "EXTRACTION", balanceBefore: 489, balanceAfter: 484, createdAt: "2026-08-04T09:15:00Z" },
-    { id: "cred_5", creditCount: 100, creditFlow: "IN", creditType: "BONUS", balanceBefore: 484, balanceAfter: 584, createdAt: "2026-08-05T10:00:00Z" },
-    { id: "cred_6", creditCount: -4, creditFlow: "OUT", creditType: "EXTRACTION", balanceBefore: 584, balanceAfter: 580, createdAt: "2026-08-06T12:00:00Z" },
-  ]
-};
-
 // --- Helper Functions ---
 const formatDate = (dateString: string) => {
   if (!dateString) return "N/A";
@@ -76,25 +50,13 @@ const formatDate = (dateString: string) => {
 };
 
 export default function SubscriptionDetailsPage() {
-  const data = mockData; 
+  const user = getUser()
 
   // Pagination States
   const [paymentPage, setPaymentPage] = useState(1);
   const [creditPage, setCreditPage] = useState(1);
   const ITEMS_PER_PAGE = 4; // Adjust items per page as needed
   const [userSubsdata, setUserSubsData] = useState<any>()
-
-  // Payment Logs Pagination Logic
-  const currentPaymentLogs = data.paymentLogs.slice(
-    (paymentPage - 1) * ITEMS_PER_PAGE,
-    paymentPage * ITEMS_PER_PAGE
-  );
-
-  // Credit Logs Pagination Logic
-  const currentCreditLogs = data.creditLogs.slice(
-    (creditPage - 1) * ITEMS_PER_PAGE,
-    creditPage * ITEMS_PER_PAGE
-  );
 
   const fetuserSubscription = async ()=>{
     try {
@@ -112,7 +74,6 @@ export default function SubscriptionDetailsPage() {
     fetuserSubscription()
   },[paymentPage, creditPage]);
 
-  console.log("here is the user",userSubsdata)
 
   return (
     <div className="min-h-screen bg-base text-ink font-sans flex flex-col">
@@ -120,8 +81,10 @@ export default function SubscriptionDetailsPage() {
       {/* --- Top Header Navigation (Matched Theme) --- */}
        <HeaderWithProfile
         activePage="subscription_details"
-        userName="Amit Vishwakarma"
-        userEmail="amit@example.com"
+        userName={user?.userName}
+        userEmail={user?.userEmail}
+        isSubscriptionActive={userSubsdata?.subscriptionStatus}
+        subscriptionPlan={userSubsdata?.plan}
       />
 
       {/* --- Main Content --- */}

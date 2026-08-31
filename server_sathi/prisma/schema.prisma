@@ -74,6 +74,7 @@ model User {
   Labels           String[]  @map("labels")
   LabelsIds        String[]  @map("labels_ids")
   msSubscriptionId   String?   @map("ms_subscription_id")
+  mailType           String?    @map("mail_type")
 
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)

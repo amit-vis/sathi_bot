@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import HeaderWithProfile from "../component/headerProfile";
 import { getUser, setAccessToken, setUser } from "@/app/auth/store";
-import { deleteSession, getAllSession } from "@/app/api/user";
+import { deleteSession, getAllSession, updateUserPersonalDetails } from "@/app/api/user";
 import { useRouter } from "next/navigation";
 
 export default function PersonalDetails() {
@@ -11,9 +11,9 @@ export default function PersonalDetails() {
   const user = getUser();
   
   const [formData, setFormData] = useState({
-    name: "Amit Vishwakarma",
-    mobile: "+91 9876543210",
-    organization: "Arush Eggs & Minerals",
+    name: user?.userName,
+    mobile: user?.userMobileNumber,
+    organization: user?.organizationName,
   });
 
 
@@ -27,10 +27,29 @@ export default function PersonalDetails() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    console.log("Saving data:", formData);
+const handleSave = async () => {
+  const UserData = await updateUserPersonalDetails({
+    userName: formData.name,
+    userMobileNumber: formData.mobile,
+    organizationName: formData.organization,
+  });
+
+  if (UserData?.success) {
     setIsEditing(false);
-  };
+    // 👇 updated data set karo, blank nahi
+    setFormData({
+      name: formData.name,
+      mobile: formData.mobile,
+      organization: formData.organization,
+    });
+    setUser({
+      ...user,
+      userName: formData.name,
+      userMobileNumber: formData.mobile,
+      organizationName: formData.organization,
+    });
+  }
+};
 
   const handleLogoutSession = async (familyId: string) => {
     const session = sessions.find((s:any)=>s.familyId === familyId)
@@ -101,6 +120,8 @@ function formatSessionTime(dateString: string) {
     timeZone: "Asia/Kolkata",
   });
 }
+
+
 
   return (
     <div className="min-h-screen bg-base text-ink font-sans flex flex-col">

@@ -4,17 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogoutUser } from "@/app/api/user";
 import { NavItem } from "./navItem";
-import { BackIcon, ChevronDownIcon, CreditCardIcon, HelpIcon, LogoutIcon, UserIcon } from "./icon";
+import { BackIcon, ChevronDownIcon, CreditCardIcon, HelpIcon, LogoutIcon, UserIcon } from "./icons";
 import { setAccessToken, setUser } from "@/app/auth/store";
-import { HomeIcon } from "../dashboard/page";
+import { HomeIcon } from "./icons";
 
 interface HeaderProps {
   activePage?: "personal_details" | "subscription_details" | "help_faq" | "dashboard";
   userName: string;
   userEmail: string;
+  isSubscriptionActive?: Boolean;
+  subscriptionPlan?:string
 }
 
-export default function HeaderWithProfile({ activePage, userName, userEmail }: HeaderProps) {
+export default function HeaderWithProfile({ activePage, userName, userEmail, isSubscriptionActive, subscriptionPlan }: HeaderProps) {
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const handleLogout = async ()=>{
@@ -26,7 +28,7 @@ export default function HeaderWithProfile({ activePage, userName, userEmail }: H
   }
 
   return (
-    <header className="h-20 flex items-center justify-between px-6 md:px-10 border-b border-line bg-surface/80 backdrop-blur-md sticky top-0 z-40">
+    <header className="h-20 flex items-center justify-between pl-14 md:pl-6 pr-6 md:pr-10 border-b border-line bg-surface/80 backdrop-blur-md sticky top-0 z-40">
       <button
         onClick={() => router.back()}
         className="flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-ink"
@@ -35,7 +37,16 @@ export default function HeaderWithProfile({ activePage, userName, userEmail }: H
         Back
       </button>
 
-      <div className="relative">
+      
+
+      <div className="relative flex items-center gap-3">
+        <button
+          onClick={() => router.push("/subscription")}
+          className="ml-3 px-4 py-2 rounded-full text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-all shadow-sm"
+        >
+          {isSubscriptionActive?subscriptionPlan:"View Plan"}
+        </button>
+        
         <button
           onClick={() => setIsProfileOpen(!isProfileOpen)}
           className="flex items-center gap-3 p-2 pr-4 rounded-full border border-line bg-surface hover:border-primary/50 transition-all shadow-sm"
@@ -50,7 +61,7 @@ export default function HeaderWithProfile({ activePage, userName, userEmail }: H
         {isProfileOpen && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
-            <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-line bg-surface shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute right-0 mt-95 w-56 rounded-2xl border border-line bg-surface shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="px-4 py-3 border-b border-line">
                 <p className="text-sm font-medium text-ink">{userName}</p>
                 <p className="text-xs text-muted truncate">{userEmail}</p>
@@ -94,7 +105,9 @@ export default function HeaderWithProfile({ activePage, userName, userEmail }: H
             </div>
           </>
         )}
+     
       </div>
+      
     </header>
   );
 }

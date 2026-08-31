@@ -31,3 +31,8 @@ export const deleteSession = async (familyId: string)=>{
   const res = await axiosInstance.delete(`/user/sessions/${familyId}`);
   return res.data
 }
+
+export const updateUserPersonalDetails = async (userDetails: any)=>{
+  const res = await axiosInstance.patch(`/user/userDetailsUpdateController`, userDetails);
+  return res.data
+}

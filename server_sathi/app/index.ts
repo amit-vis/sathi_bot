@@ -16,7 +16,8 @@ app.use(express.urlencoded({extended: true}))
 app.use(cors({
     origin:["https://annmarie-nonextractable-mathematically.ngrok-free.dev", 
         "http://localhost:3000",
-        "https://rewrite-skeleton-petri.ngrok-free.dev"],
+        "https://rewrite-skeleton-petri.ngrok-free.dev",
+    "https://stability-bracelets-better-understand.trycloudflare.com"],
     methods: ["GET", "PUT", "POST", "PATCH", "DELETE"],
     credentials: true
 }));
