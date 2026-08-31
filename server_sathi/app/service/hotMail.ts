@@ -1,5 +1,5 @@
 import axios from "axios";
-import { createUser, getUserByMail, getUserDatasubscription, updatOTP, updatTokens } from "../model/user.js";
+import { createUser, getUserByMail, getUserDatasubscription, updatewtchExpire, updatOTP, updatTokens } from "../model/user.js";
 import { decryptionToken, encryptToken, sendOTP } from "../config/helperfunction/userHelper.js";
 import bcrypt from "bcryptjs";
 import { sendOTPackGmailQueue } from "./queue/gmailQueue.js";
@@ -613,6 +613,12 @@ export const mailAccessRealTimeOutlook = async (userEmail: string) => {
             action: "mailAccessRealTimeOutlook",
             email: userEmail
         });
+        const subscriptionId = resdata.data.id;
+        const expirationString = resdata.data.expirationDateTime;
+
+        // ✅ Convert ISO string to Date object for Prisma
+        const expirationDate = new Date(expirationString);
+        await updatewtchExpire(expirationDate, userEmail, subscriptionId)
         return resdata.data;
 
         // ⚠️ IMPORTANT: resdata.data.id save karo DB mein —

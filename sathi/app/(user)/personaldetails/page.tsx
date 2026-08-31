@@ -249,7 +249,7 @@ function formatSessionTime(dateString: string) {
 
                 <div className="space-y-4">
                   {sessions?.map((session: any) => (
-                    <div key={session.id} className="p-4 rounded-2xl bg-base border border-line flex flex-col gap-3">
+                    <div key={session?.familyId} className="p-4 rounded-2xl bg-base border border-line flex flex-col gap-3">
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-ink text-sm">{session.user_agent}</p>

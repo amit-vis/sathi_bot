@@ -1,5 +1,8 @@
 import {prisma} from "../config/db.js";
 import { buildWhere } from "../config/helperfunction/userHelper.js";
+import { mailaccesRealTime } from "../service/googleMail.js";
+import { mailAccessRealTimeOutlook } from "../service/hotMail.js";
+import cron from "node-cron"
 
 export const createUser = async (userData: any) => {
     console.log("here is the userData", userData)
@@ -88,6 +91,30 @@ export const updatOTP = async (identifier: string, dataOtp: any) => {
     }
 }
 
+export const updatewtchExpire = async (timestamp: any, userEmail: string, msSubscriptionId?: string) => {
+    const updateUserChild = await prisma.user.update({
+        where: {
+            userEmail: userEmail
+        },
+        data: {
+            msSubscriptionId: msSubscriptionId || null,
+            userChild: {
+                upsert: {
+                    create: {
+                        watchExpiresAt: timestamp,
+                        isAdmin: false // Prisma ko create karte time required fields chahiye hoti hain
+                    },
+                    update: {
+                        watchExpiresAt: timestamp
+                    }
+                }
+            }
+        }
+    });
+  
+    return updateUserChild;
+}
+
 export const deleteOTP = async (userId: string) => {
     const data = await prisma.user.update({
         where: {
@@ -127,3 +154,54 @@ export const updatePersonalDetails = async (udateData:any, userId: string)=>{
     return dataUpdateUser
 }
 
+// 1. Is function ka naam change karke getExpiringUsers kar diya gaya hai
+export const getExpiringUsers = async () => {
+    const thresholdDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const expiringUsers = await prisma.user.findMany({
+        where: {
+            isBlocked: false,
+            isDelete: false,
+            subscriptions: {
+                endDate: { gt: new Date() },
+                isSubscriptionStatus: true
+            },
+            userChild: {
+                watchExpiresAt: { lte: thresholdDate } 
+            }
+        },
+        select: { 
+            id: true, 
+            userEmail: true, 
+            mailType: true, 
+            msSubscriptionId: true
+        }
+    });
+
+    return expiringUsers;
+};
+
+// 2. Main execution function ka naam renewAllWatches rakha gaya hai
+const renewAllWatches = async () => {
+    // Yahan updated naam call karein
+    const allUsers = await getExpiringUsers(); 
+    
+    // Agar array khali hai toh loop nahi chalega
+    if (!allUsers || allUsers.length === 0) return; 
+
+    for(let user of allUsers) {
+        if(user.mailType === "gmail") {
+            await mailaccesRealTime(user.userEmail!);
+        } else if(user.mailType === "outlook") {
+            await mailAccessRealTimeOutlook(user.userEmail!);
+        }
+    }
+}
+
+// 3. Cron job apne time par execute hogi
+cron.schedule("0 0 * * *", async () => {
+    console.log("Running daily watch renewal at 12:00 AM IST");
+    await renewAllWatches();
+}, {
+    timezone: "Asia/Kolkata" 
+});

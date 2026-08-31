@@ -1,7 +1,7 @@
 import axios from "axios";
 import { CLASSIFY_HEADERS } from "../config/helperfunction/helper.js"
 import { gemailQueue } from "./queue/gmailQueueExtracter.js"
-import { createUser, getUserByMail, updatOTP, updatTokens } from "../model/user.js";
+import { createUser, getUserByMail, updatewtchExpire, updatOTP, updatTokens } from "../model/user.js";
 import { decryptionToken, encryptToken, sendOTP } from "../config/helperfunction/userHelper.js";
 import { sendOTPackGmailQueue } from "./queue/gmailQueue.js";
 import bcrypt from "bcryptjs";
@@ -675,6 +675,8 @@ export const mailaccesRealTime = async (userEmail: string) => {
             action: "mailaccesRealTime",
             email: userEmail
         });
+
+        await updatewtchExpire(resdata.data.expiration, userEmail)
         return resdata.data;
     } catch (error: any) {
         logger.error("Gmail watch registration failed", {

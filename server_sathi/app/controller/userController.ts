@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createUser, deleteOTP, getUserByMail, updatePersonalDetails, updatOTP, updatTokens } from "../model/user.js";
+import { createUser, deleteOTP, getUserByMail, updatePersonalDetails, updatOTP } from "../model/user.js";
 import { issueTokens } from "./refresherController.js";
 import { clearCookieOptions, hashToken, REFRESH_COOKIE } from "../config/tokens.js";
 import { findHash, listSessions, revokeAllForUser, revokeFamily } from "../model/refreshToken.js";
@@ -9,7 +9,7 @@ import { mailaccesRealTime } from "../service/googleMail.js";
 import crypto from "crypto";
 import {  createSubscription, getSubscriptionUserWise } from "../model/subscription.js";
 import { mailAccessRealTimeOutlook } from "../service/hotMail.js";
-import logger from "../utils/logger.js"; // <-- ADDED LOGGER IMPORT
+import logger from "../utils/logger.js"; 
 
 export const createController = async (req: any, res: any) => {
     try {
@@ -248,29 +248,6 @@ export const veriFyOTP = async (req: any, res: any) => {
     }
 }
 
-export const resendOTP = async (req: any, res: any)=>{
-    try {
-        const { identifier } = req.params;
-        const { otp } = req.body;
-        if (!identifier) {
-            return res.status(400).json({
-                message: "required phone or email id",
-                success: false
-            })
-        }
-
-        const existingUser = await getUserByMail(identifier);
-        if (!existingUser) {
-            return res.status(401).json({
-                message: "user does not exist",
-                success: false
-            })
-        }
-    } catch (error) {
-        
-    }
-}
-
 export const logout = async (req: any, res: any) => {
     try {
         const raw = req.cookies?.[REFRESH_COOKIE];
@@ -440,3 +417,4 @@ export const userDetailsUpdateController = async (req: any, res: any) => {
     });
   }
 };
+

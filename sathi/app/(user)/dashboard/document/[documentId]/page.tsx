@@ -47,7 +47,7 @@ export default function DocumentDetailPage() {
 
   if (!doc) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-base text-muted">
+      <div className="flex flex-col items-center justify-center h-screen bg-base text-muted px-4 text-center">
         <p className="text-lg">Document not found</p>
         <button onClick={() => router.back()} className="mt-4 px-4 py-2 text-sm rounded-lg border border-line hover:text-ink">
           Go Back
@@ -59,23 +59,28 @@ export default function DocumentDetailPage() {
   return (
     <div className="min-h-screen bg-base text-ink font-sans">
       {/* Header */}
-      <div className="border-b border-line bg-surface px-8 py-6">
+      <div className="border-b border-line bg-surface px-4 py-4 md:px-8 md:py-6">
         <button onClick={() => router.back()} className="text-sm text-muted hover:text-ink mb-4 flex items-center gap-2">
           <BackArrowIcon /> Back to Documents
         </button>
 
-        <div className="flex items-center justify-between">
+        {/* Reponsive Header Layout: Mobile par flex-col, Medium screen par flex-row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">{doc.documentNumber || "Untitled Document"}</h1>
+            <h1 className="text-xl md:text-2xl font-bold break-words">{doc.documentNumber || "Untitled Document"}</h1>
             <p className="text-sm text-muted mt-1 capitalize">
               {doc.documentType?.replace("_", " ") || "—"} •{" "}
               {doc.documentDate ? new Date(doc.documentDate).toLocaleDateString("en-IN") : "No date"}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted">Grand Total</p>
-            <p className="text-3xl font-bold">{doc.grandTotal ? formatCurrency(doc.grandTotal) : "—"}</p>
-            <span className={`text-xs font-medium px-3 py-1 rounded-full ${
+          
+          <div className="md:text-right mt-2 md:mt-0 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-start">
+            <div className="flex flex-col md:items-end">
+               <p className="text-sm text-muted hidden md:block">Grand Total</p>
+               <p className="text-2xl md:text-3xl font-bold">{doc.grandTotal ? formatCurrency(doc.grandTotal) : "—"}</p>
+            </div>
+            
+            <span className={`text-xs font-medium px-3 py-1 rounded-full mt-0 md:mt-2 ${
               doc.balanceDue > 0 ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
             }`}>
               {doc.balanceDue > 0 ? `Due: ${formatCurrency(doc.balanceDue)}` : "Paid"}
@@ -83,13 +88,13 @@ export default function DocumentDetailPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 mt-6">
+        {/* Scrollable Tabs for Mobile */}
+        <div className="flex gap-2 mt-6 overflow-x-auto no-scrollbar pb-2">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
+              className={`whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg capitalize transition-colors ${
                 activeTab === tab
                   ? "bg-primary text-white"
                   : "text-muted hover:text-ink hover:bg-primary/10"
@@ -106,7 +111,8 @@ export default function DocumentDetailPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="p-8">
+      {/* Mobile par padding kam ki hai (p-4), aur desktop pe normal (md:p-8) */}
+      <div className="p-4 md:p-8">
         {activeTab === "overview" && <OverviewTab doc={doc} />}
         {activeTab === "items" && <ItemsTab items={doc.items} />}
         {activeTab === "parties" && <PartiesTab parties={doc.parties} />}

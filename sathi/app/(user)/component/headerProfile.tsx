@@ -12,11 +12,9 @@ interface HeaderProps {
   activePage?: "personal_details" | "subscription_details" | "help_faq" | "dashboard";
   userName: string;
   userEmail: string;
-  isSubscriptionActive?: Boolean;
-  subscriptionPlan?:string
 }
 
-export default function HeaderWithProfile({ activePage, userName, userEmail, isSubscriptionActive, subscriptionPlan }: HeaderProps) {
+export default function HeaderWithProfile({ activePage, userName, userEmail }: HeaderProps) {
   const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const handleLogout = async ()=>{
@@ -44,7 +42,7 @@ export default function HeaderWithProfile({ activePage, userName, userEmail, isS
           onClick={() => router.push("/subscription")}
           className="ml-3 px-4 py-2 rounded-full text-sm font-medium bg-primary text-white hover:bg-primary/90 transition-all shadow-sm"
         >
-          {isSubscriptionActive?subscriptionPlan:"View Plan"}
+          View Plan
         </button>
         
         <button

@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import HeaderWithProfile from '../component/headerProfile';
 import { userSubscriptiondetails } from '@/app/api/subscription';
 import { getUser } from '@/app/auth/store';
+import Link from 'next/link';
 
 // --- Type Definitions ---
 export interface PaymentLog {
@@ -83,8 +83,6 @@ export default function SubscriptionDetailsPage() {
         activePage="subscription_details"
         userName={user?.userName}
         userEmail={user?.userEmail}
-        isSubscriptionActive={userSubsdata?.subscriptionStatus}
-        subscriptionPlan={userSubsdata?.plan}
       />
 
       {/* --- Main Content --- */}
@@ -103,8 +101,10 @@ export default function SubscriptionDetailsPage() {
                   ? 'bg-whatsapp/10 text-whatsapp border-whatsapp/20' 
                   : 'bg-[#ea4335]/10 text-[#ea4335] border-[#ea4335]/20'
               }`}>
-                {userSubsdata?.subscriptionStatus ? 'Active Subscription' : 'Inactive Subscription'}
-              </span>
+{userSubsdata?.subscriptionStatus && new Date(userSubsdata?.endDate) > new Date() 
+    ? 'Active Subscription' 
+    : 'Inactive Subscription'}              
+    </span>
             </div>
           </div>
 
@@ -113,7 +113,17 @@ export default function SubscriptionDetailsPage() {
             {/* Plan Card */}
             <div className="bg-surface border border-line rounded-3xl p-6 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.5)]">
               <p className="text-sm font-medium text-muted uppercase tracking-wider">Current Plan</p>
-              <p className="text-xl font-bold text-ink mt-2">{userSubsdata?.plan}</p>
+              {userSubsdata?.subscriptionStatus && new Date(userSubsdata?.endDate) > new Date() ?
+              <p className="text-xl font-bold text-ink mt-2">{userSubsdata?.plan}</p>:
+
+// Component ke andar:
+<Link 
+  href="/subscription" 
+  className="group inline-flex items-center gap-1 text-sm font-bold text-blue-500 uppercase tracking-wider hover:text-blue-400 transition-all"
+>
+  View Subscription
+  <span className="transition-transform group-hover:translate-x-1">→</span>
+</Link>}
             </div>
             
             {/* Validity Card */}
@@ -282,56 +292,3 @@ export default function SubscriptionDetailsPage() {
 }
 
 // --- Icons Components ---
-function BackIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
-
-function ChevronDownIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9"></polyline>
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-      <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-  );
-}
-
-function CreditCardIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-      <line x1="1" y1="10" x2="23" y2="10"></line>
-    </svg>
-  );
-}
-
-function HelpIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"></circle>
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-      <line x1="12" y1="17" x2="12.01" y2="17"></line>
-    </svg>
-  );
-}
-
-function LogoutIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-      <polyline points="16 17 21 12 16 7"></polyline>
-      <line x1="21" y1="12" x2="9" y2="12"></line>
-    </svg>
-  );
-}
