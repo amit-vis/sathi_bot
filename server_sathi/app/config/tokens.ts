@@ -4,9 +4,10 @@ import type { CookieOptions } from "express";
 
 
 
+// 1. signAccessToken — userChild undefined ho sakta hai
 export const signAccessToken = (user: any) => {
     return jwt.sign(
-        {},
+        { isAdmin: user?.userChild?.isAdmin ?? false },  // optional chaining + default
         process.env.JWTAccessTokenSecret!,
         {
             subject: user.id,
@@ -14,6 +15,8 @@ export const signAccessToken = (user: any) => {
         }
     )
 }
+
+// 2. issueTokens — error handler mein req.user exist nahi karega during login
 
 export const verifyAccessToken = (token: any) => {
     return jwt.verify(token, process.env.JWTAccessTokenSecret!)

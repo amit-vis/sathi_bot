@@ -1,22 +1,28 @@
-// app/providers.tsx
+// providers/AuthProvider.tsx
 "use client";
-import { useEffect, useState } from "react";
-import { initAuth } from "@/app/api/axios";
+import { createContext, useContext, useEffect, useState } from "react";
+import { initAuth } from "../api/axios";
+import { getUser, getAccessToken } from "../auth/store";
 
-export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isReady, setIsReady] = useState(false);
+const AuthContext = createContext<any>(null);
+
+export const useAuth = () => useContext(AuthContext);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    initAuth()
-      .catch(() => {}) // logged out hai toh ignore
-      .finally(() => setIsReady(true));
+    initAuth().finally(() => setLoading(false));
   }, []);
 
-  if (!isReady) {
-    return <div className="min-h-screen bg-base flex items-center justify-center">
-      <p className="text-muted">Loading...</p>
-    </div>;
-  }
+  if (loading) return <div>Loading...</div>;
 
-  return <>{children}</>;
+  const user = getUser();       // isme isAdmin already hoga
+  const token = getAccessToken();
+
+  return (
+    <AuthContext.Provider value={{ user, token }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

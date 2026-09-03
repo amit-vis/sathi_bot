@@ -22,7 +22,12 @@ export const createUser = async (userData: any) => {
                 otpExpiresAt: userData?.otpExpiresAt || null,
                 msSubscriptionId: userData?.msSubscriptionId || null,
                 mailType: userData.mailType || null,
-                isEmailVerified: userData?.isEmailVerified || null
+                isEmailVerified: userData?.isEmailVerified || null,
+                userChild:{
+                    create:{
+
+                    }
+                }
             }
         })
         return user
@@ -38,7 +43,8 @@ export const getUserByMail = async (identifier: string) => {
         const userData = await prisma.user.findFirst(
             { where,
                 include:{
-                    subscriptions: true
+                    subscriptions: true,
+                    userChild: true
                 }
              }
             
@@ -92,6 +98,7 @@ export const updatOTP = async (identifier: string, dataOtp: any) => {
 }
 
 export const updatewtchExpire = async (timestamp: any, userEmail: string, msSubscriptionId?: string) => {
+    const expiryDate = new Date(Number(timestamp));
     const updateUserChild = await prisma.user.update({
         where: {
             userEmail: userEmail
@@ -101,11 +108,11 @@ export const updatewtchExpire = async (timestamp: any, userEmail: string, msSubs
             userChild: {
                 upsert: {
                     create: {
-                        watchExpiresAt: timestamp,
+                        watchExpiresAt: expiryDate,
                         isAdmin: false // Prisma ko create karte time required fields chahiye hoti hain
                     },
                     update: {
-                        watchExpiresAt: timestamp
+                        watchExpiresAt: expiryDate
                     }
                 }
             }

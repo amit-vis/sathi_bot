@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import { verifyAccessToken } from "./tokens.js";
 
 export const requireAuth = async (req: any, res: any, next: any) => {
@@ -9,8 +10,8 @@ export const requireAuth = async (req: any, res: any, next: any) => {
         })
     }
     try {
-        const payload = verifyAccessToken(header.slice(7));
-        req.user = { id: payload.sub };
+        const payload = verifyAccessToken(header.slice(7)) as jwt.JwtPayload;
+        req.user = { id: payload.sub, isAdmin: payload.isAdmin };
         next()
     } catch (error: any) {
         const code = error.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN';

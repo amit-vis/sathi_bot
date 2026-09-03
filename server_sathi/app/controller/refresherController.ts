@@ -11,6 +11,7 @@ export const issueTokens = async (res: any, user: any, familyId: any, req: any) 
             tokenHash: hash,
             familyId,
             userId: user?.id,
+            isAdmin: user?.userChild?.isAdmin,
             expiresAt: refreshExpiry(),
             userAgent: req.get("user-agent"),
             ip: req.ip
@@ -26,13 +27,12 @@ export const issueTokens = async (res: any, user: any, familyId: any, req: any) 
         res.cookie(REFRESH_COOKIE, raw, refreshCookieOptions);
         return signAccessToken(user)
     } catch (error: any) {
-        logger.error('Error updating plan', {
-            type: 'API_ERROR',
-            userId: req.user.id,
-            error: error.message,
-            stack: error.stack,
-            url: req.originalUrl
-        });
+        logger.error('Error issuing tokens', {         // message bhi fix karo
+        type: 'AUTH_ERROR',
+        userId: user?.id,                           // req.user.id nahi, user?.id
+        error: error.message,
+        stack: error.stack,
+    });
         throw error
     }
 }

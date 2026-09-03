@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import {  Poppins } from "next/font/google";
-import "./globals.css";
-import AuthProvider from "./auth/provider";
+import "../globals.css";
+import AdminRoute from "../../auth/AdminRoute";
+
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 
-export default function RootLayout({
+export default function AdminProtectedLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -26,9 +27,12 @@ export default function RootLayout({
       className={poppins.variable}
     >
       <body >
-        <AuthProvider>
+  
+      <AdminRoute>
           {children}
-        </AuthProvider>
+          </AdminRoute>
+
+ 
       </body>
     </html>
   );

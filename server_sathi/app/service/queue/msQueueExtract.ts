@@ -5,7 +5,7 @@ import { chunkArray, filterMail } from "../../config/helperfunction/helper.js";
 import { checkVerdict, extracter } from "../genAi.js";
 import { createResearch } from "../../model/researchData.js";
 import { upsertDocument } from "../../model/document.js";
-import { getSubscriptionUserWise } from "../../model/subscription.js";
+import { createCredit, getSubscriptionUserWise } from "../../model/subscription.js";
 import logger from "../../utils/logger.js";
 
 export const msQueue = new Queue("ms_extracted", {
@@ -142,6 +142,11 @@ new Worker("ms_extracted", async (job: any) => {
                     completeness: d.completeness,
                 }))
             })
+            await createCredit(job?.data?.userId, {
+                            creditCount: 1,
+                            creditFlow: "OUT",
+                            creditType: "USAGE"
+                        })
             await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress);
             logger.info("Successfully extracted and processed email", {
                 type: "WORKER_EXTRACTION_MS",
