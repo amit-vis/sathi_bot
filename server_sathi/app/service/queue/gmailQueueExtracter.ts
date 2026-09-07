@@ -19,8 +19,8 @@ maxRetriesPerRequest: null,
     reconnectOnError: (err: any) => {
     return err.message.includes("READONLY");
   },
-  enableOfflineQueue: false,
-  lazyConnect: true,
+  enableOfflineQueue: true,
+//   lazyConnect: true,
 })
 
 export const gemailQueue = new Queue("extracted_data", {
@@ -191,4 +191,4 @@ new Worker("extracted_data", async (job: any) => {
     connection:connection2 as any
 })
 
-
+await connection2.connect();
