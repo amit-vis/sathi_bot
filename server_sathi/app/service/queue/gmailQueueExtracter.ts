@@ -1,5 +1,6 @@
 import { Queue, Worker, Job } from "bullmq";
 import { createClient } from "redis";
+import {Redis} from "ioredis";
 import { generateNewAccessToken, getAllUnreadMessages, getMessageMeta, getmessages, markAsbotBlocked, markAsProcessed } from "../googleMail.js";
 import { chunkArray, filterMail } from "../../config/helperfunction/helper.js";
 import { checkVerdict, extracter } from "../genAi.js"
@@ -12,9 +13,18 @@ export const redisConfig: any = {
     host: "localhost",
     port: 6379
 }
+export const connection2 = new Redis(process.env.REDIS_URL!,{
+maxRetriesPerRequest: null,
+    tls:{rejectUnauthorized: false},
+    reconnectOnError: (err: any) => {
+    return err.message.includes("READONLY");
+  },
+  enableOfflineQueue: false,
+  lazyConnect: true,
+})
 
 export const gemailQueue = new Queue("extracted_data", {
-    connection: redisConfig,
+    connection: connection2 as any,
     defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -178,10 +188,7 @@ new Worker("extracted_data", async (job: any) => {
 
 
 }, {
-    connection: redisConfig
+    connection:connection2 as any
 })
 
 
-export const redisClient = createClient(redisConfig);
-
-await redisClient.connect();

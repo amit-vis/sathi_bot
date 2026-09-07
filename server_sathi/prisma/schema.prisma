@@ -89,16 +89,17 @@ model User {
 
 model UserChild {
   id             String    @id @default(uuid()) @db.Uuid
-  
-  // ✅ Yahan @unique lagana zaroori hai 1:1 relation ke liye
   userId         String    @unique @map("user_id") @db.Uuid 
-  
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   isAdmin        Boolean   @default(false) @map("is_admin")
   watchExpiresAt DateTime? @map("watch_expires_at")
   password       String?   @map("password")
+
+  // ─── NEW ───
+  deactivationReason  String?   @map("deactivation_reason")
+  deleteInputText     String?   @map("delete_input_text")
   
-  @@map("user_child") // DB table name clear rakhne ke liye
+  @@map("user_child")
 }
 
 model Document {
@@ -367,6 +368,7 @@ enum SubscriptionPlan {
   BASIC
   PRO
   ENTERPRISE
+  SUBSCRIPTION_ACTIVATION
 }
 
 enum PaymentMedium {

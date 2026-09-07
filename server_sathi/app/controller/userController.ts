@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { createUser, deleteOTP, getUserByMail, updatePersonalDetails, updatOTP } from "../model/user.js";
+import { createUser, deactivateUser, deleteOTP, deleteUser, getUserByMail, reactivateUser, recoverUser, updatePersonalDetails, updatOTP } from "../model/user.js";
 import { issueTokens } from "./refresherController.js";
 import { clearCookieOptions, hashToken, REFRESH_COOKIE } from "../config/tokens.js";
 import { findHash, listSessions, revokeAllForUser, revokeFamily } from "../model/refreshToken.js";
@@ -230,7 +230,8 @@ export const veriFyOTP = async (req: any, res: any) => {
         return res.json({
             message: "you have signIn successfully!",
             accessToken,
-            user: existingUser
+            user: {...existingUser, 
+                isAdmin: existingUser.userChild?.isAdmin?existingUser.userChild?.isAdmin:false }
         })
 
     } catch (error: any) {
@@ -314,6 +315,7 @@ export const sessions = async (req: any, res: any) => {
     try {
         const cookieToken = req.cookies?.rt
         const activeSessions = await listSessions(cookieToken, req.user.id);
+        console.log("here is the", req.user)
         
         logger.info("Sessions fetched successfully", {
             type: "GET_SESSIONS",
@@ -418,3 +420,135 @@ export const userDetailsUpdateController = async (req: any, res: any) => {
   }
 };
 
+export const deleteUserController = async (req: any, res: any)=>{
+    try {
+        const {deleteInputText} = req.body;
+        if(!req.user.id){
+            return res.status(401).json({
+                message: "You are not authorized",
+                success: false
+            })
+        }
+        const getUser = await getUserByMail(req.user?.id);
+        if(!getUser){
+            return res.status(404).json({
+                message: "user does not exist",
+                success: false
+            })
+        }
+        await deleteUser(req.user?.id, deleteInputText);
+
+        await sendOTPackGmailQueue.add("delete-user",{
+            type: "deleteuser",
+            to: getUser?.userEmail,
+            userName: getUser?.userName
+        },{
+            priority: 8
+        });
+        logger.info("User deleted mark successfully!",{
+            type: "USER_DELETE",
+            action: "delete user",
+            email: getUser.userEmail
+        });
+        return res.status(200).json({
+            message: "user mark deleted successfully!",
+            success: true
+        })
+    } catch (error: any) {
+        logger.error("Failed to mark deletd user",{
+            type: "USER_DELETE",
+            action: "delete user",
+            email: error.message
+        });
+        return res.status(500).json({ error: "Failed to fetch user information" });
+
+    }
+}
+
+export const deactivateUserController = async (req: any, res: any)=>{
+    try {
+        const {reason} = req.body;
+        if(!req.user.id){
+            return res.status(401).json({
+                message: "You are not authorized",
+                success: false
+            })
+        }
+
+        await deactivateUser(req.user?.id, reason);
+        logger.info("User deactivate mark successfully!",{
+            type: "USER_DEACTIVATE",
+            action: "deactivate user",
+            userId: req.user?.id
+        });
+        return res.status(200).json({
+            message: "user mark deleted successfully!",
+            success: true
+        })
+    } catch (error: any) {
+        logger.error("Failed to mark deactivate user",{
+            type: "USER_DEACTIVATE",
+            action: "deactivate user",
+            email: error.message
+        });
+        return res.status(500).json({ error: "Failed to fetch user information" });
+    }
+}
+
+export const reactiveUserController = async (req: any, res: any)=>{
+    try {
+        const {userId} = req.query;
+        if(!req.user?.id && !req.user.isAdmin){
+            return res.status(400).json({
+                message: "you are not authorized",
+                success: false
+            })
+        }
+
+        await reactivateUser(userId);
+        logger.info("User Active mark successfully!",{
+            type: "USER_ACTIVATE",
+            action: "Active user",
+            userId: req.user?.id
+        });
+        return res.status(200).json({
+            message: "User active now",
+            success: true
+        })
+    } catch (error: any) {
+        logger.error("Failed to mark active user",{
+            type: "USER_ACTIVATE",
+            action: "activate user",
+            email: error.message
+        });
+    }
+}
+
+export const recoverUserController = async (req: any, res: any)=>{
+    try {
+        const {userId} = req.query;
+        if(!req.user?.id && !req.user.isAdmin){
+            return res.status(400).json({
+                message: "you are not authorized",
+                success: false
+            })
+        }
+
+        await recoverUser(userId);
+        logger.info("recover User successfully!",{
+            type: "RECOVER_USER",
+            action: "recover user",
+            userId: req.user?.id
+        });
+        return res.status(200).json({
+            message: "user recover successfully!",
+            success: true
+        })
+    } catch (error: any) {
+        logger.error("Failed to mark active user",{
+            type: "RECOVER_USER",
+            action: "recover user",
+            email: error.message
+        });
+    }
+}

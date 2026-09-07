@@ -17,7 +17,9 @@
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true  // ✅ Trailing comma remove kar
+    "skipLibCheck": true,
+    // "esModuleInterop": true,
+    // "allowSyntheticDefaultImports": true
   },
   "include": ["app/**/*", "prisma/**/*"]
 }

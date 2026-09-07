@@ -77,7 +77,10 @@ export const refresh = async (req: any, res: any) => {
 
         const accessToken = await issueTokens(res, user, consumed.familyId, req);
         
-        return res.json({ accessToken, user })
+        return res.json({ accessToken, user:{
+            ...user,
+            isAdmin: user?.userChild?.isAdmin ?? false
+        } })
     } catch (error: any) {
         
         return res.status(500).json({

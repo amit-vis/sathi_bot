@@ -1,5 +1,5 @@
 import { Queue, Worker } from "bullmq";
-import { redisClient, redisConfig } from "./gmailQueueExtracter.js";
+import {  redisConfig, connection2 } from "./gmailQueueExtracter.js";
 import { generateNewAccessTokenOutlook, getAllUnreadMessages, fetchAllMeta, getMessages, markAsBotBlocked, markAsProcessed } from "../hotMail.js";
 import { chunkArray, filterMail } from "../../config/helperfunction/helper.js";
 import { checkVerdict, extracter } from "../genAi.js";
@@ -9,7 +9,7 @@ import { createCredit, getSubscriptionUserWise } from "../../model/subscription.
 import logger from "../../utils/logger.js";
 
 export const msQueue = new Queue("ms_extracted", {
-    connection: redisConfig,
+    connection: connection2 as any,
     defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -165,5 +165,5 @@ new Worker("ms_extracted", async (job: any) => {
     }
 
 }, {
-    connection: redisConfig
+    connection: connection2 as any
 })

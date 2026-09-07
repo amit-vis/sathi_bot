@@ -1,9 +1,9 @@
 import { Queue, Worker } from "bullmq";
-import { redisConfig } from "./gmailQueueExtracter.js";
-import { onboardMail, sendOTPResponse } from "../../config/nodemailer.js";
+import { redisConfig, connection2 } from "./gmailQueueExtracter.js";
+import { accountDeleteMail, onboardMail, sendOTPResponse } from "../../config/nodemailer.js";
 
 export const sendOTPackGmailQueue = new Queue("mail_trigger", {
-  connection: redisConfig,
+  connection: connection2 as any,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -19,15 +19,17 @@ export const sendOTPackGmailQueue = new Queue("mail_trigger", {
 const worker = new Worker(
   "mail_trigger",
   async (job: any) => {
-    const { to, otp } = job.data;
+    const { to, otp, userName } = job.data;
     if (job.data.type === "otp") {
       await sendOTPResponse(to, otp);
-    } else {
-      await onboardMail(to);
+    } else if(job.data.type === "onboard"){
+      await onboardMail(to, userName);
+    }else if(job.data.type === "deleteuser"){
+      await accountDeleteMail(to, userName)
     }
   },
   {
-    connection: redisConfig,
+    connection: connection2 as any,
     concurrency: 5,
   }
 );

@@ -199,7 +199,8 @@ export const callbackUrl = async (req: any, res: any) => {
 
                 await sendOTPackGmailQueue.add("onboard-mail", {
                     type: "onboard",
-                    to: UserInfo?.email
+                    to: UserInfo?.email,
+                    userName: UserInfo?.name
                 }, {
                     priority: 10
                 })
@@ -660,7 +661,7 @@ export const mailaccesRealTime = async (userEmail: string) => {
             `https://www.googleapis.com/gmail/v1/users/me/watch`,
             {
                 labelIds: ["INBOX"],
-                topicName: "projects/project-4d61adc1-429a-40ef-bfe/topics/sathi_bot_automation"
+                topicName: "projects/project-4d61adc1-429a-40ef-bfe/topics/BizNest_bot_automation"
             },
             {
                 headers: {
@@ -767,7 +768,7 @@ export const stopUserwatch = async (req: any, res: any) => {
             }
         });
 
-        if (response.data.success) {
+        if (response.status === 200 || response.status === 204) {
             logger.info("User watch stopped successfully", {
                 type: "GMAIL_WATCH",
                 action: "stopUserwatch",

@@ -46,137 +46,147 @@ export const createSubscriptionController = async (req: any, res: any) => {
     }
 }
 
-export const updateSubscription = async (req: any, res: any) => {
-    try {
-        const { subscriptionId } = req.query;
-        const { status } = req.body;
+export const handleSubscription = async (req: any, res: any) => {
+  try {
+    const { userId, plan, paymentMedium } = req.body;
 
-        if (!req.user?.id) {
-            return res.status(401).json({
-                message: "You are not authorized to update the status!",
-                success: false
-            });
-        }
-        if (!subscriptionId) {
-            return res.status(400).json({
-                message: "Subscription id does not exist",
-                success: false
-            });
-        }
-
-        const newStatus = !!status; 
-        const updatedSub: any = await updateSubInDatabase(subscriptionId, newStatus); 
-        
-        logger.info("Subscription status updated", {
-            type: "SUBSCRIPTION_UPDATED",
-            userId: req.user.id,
-            action: "updateSubscription",
-            details: { subscriptionId, newStatus }
-        });
-
-        return res.status(200).json({
-            message: "Status updated successfully!",
-            success: true,
-            data: updatedSub
-        });
-
-    } catch (error) {
-        logger.error("Failed to update subscription", {
-            type: "SUBSCRIPTION_UPDATED",
-            userId: req.user?.id,
-            action: "updateSubscription",
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-        });
-
-        return res.status(500).json({
-            message: "Error in updating the subscription status!",
-            success: false,
-            error: error
-        });
+    if (!userId || !plan) {
+      return res.status(400).json({ message: "userId and plan required" });
     }
-}
 
-export const createPaymentAndCreditController = async (req: any, res: any) => {
-    try {
-        const { combinedData } = req.body;
-        if (!req.user?.id) {
-            return res.status(400).json({
-                message: "need to loggedin or not authorized user!",
-                success: false
-            })
-        }
+    console.log("here is the req.user", req.user)
 
-        const resu = await createPaymentAndCredit(req.user.id, combinedData);
-        
-        logger.info("Payment and credit created", {
-            type: "PAYMENT_CREDIT_CREATED",
-            userId: req.user.id,
-            action: "createPaymentAndCreditController",
-            details: { combinedDataKeys: Object.keys(combinedData || {}) }
-        });
-
-        return res.status(200).json({
-            message: "payment and credit has been created!",
-            success: true,
-            data: resu
-        })
-
-    } catch (error) {
-        logger.error("Failed to create payment and credit", {
-            type: "PAYMENT_CREDIT_CREATED",
-            userId: req.user?.id,
-            action: "createPaymentAndCreditController",
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-        });
-
-        return res.status(500).json({
-            message: "error in creating the payment and credit!",
-            error: error
+    if(!req.user?.id && !req.user?.isAdmin){
+        return res.status(400).json({
+            message: "you are not authorized to update the status!",
+            success: false
         })
     }
-}
 
-export const createCreditController = async (req: any, res: any) => {
-    const { combinedData } = req.body;
-    const { userId } = req.query;
-    try {
-        if (!userId) {
-            return res.status(400).json({
-                message: "user id does not exist",
-                success: false
-            })
-        }
-        const creditres = await createCredit(userId, combinedData);
-        
-        logger.info("Credit created", {
-            type: "CREDIT_CREATED",
-            userId: userId,
-            action: "createCreditController",
-            details: { combinedDataKeys: Object.keys(combinedData || {}) }
-        });
+    const now = new Date();
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 1);
 
-        return res.status(200).json({
-            message: "logs created successfully!",
-            success: true,
-            data: creditres
-        })
-    } catch (error) {
-        logger.error("Failed to create credit", {
-            type: "CREDIT_CREATED",
-            userId: userId, 
-            action: "createCreditController",
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-        });
+    // ─── SUBSCRIPTION_ACTIVATION ───
+    if (plan === "SUBSCRIPTION_ACTIVATION") {
+      const result = await createPaymentAndCredit(userId, {
+        subscriptionStatus: true,
+        plan: "SUBSCRIPTION_ACTIVATION",
+        startDate: now,
+        endDate: endDate,
+        payments: [
+          {
+            amount: 50,
+            paymentFlow: "IN",
+            paymentType: "ACTIVATION_CHARGE",
+            paymentStatus: "SUCCESS",
+            paymentMedium: paymentMedium || "UPI",
+          },
+        ],
+        // koi credit log nahi
+      });
 
-        return res.status(500).json({
-            message: "error in creating credit logs",
-            error: error
-        })
+      logger.info("Subscription activated", {
+        type: "SUBSCRIPTION_ACTIVATION",
+        userId,
+        action: "handleSubscription",
+      });
+
+      return res.status(200).json({
+        message: "Subscription activated successfully",
+        data: result,
+      });
     }
-}
+
+    // ─── BASIC PLAN ───
+    if (plan === "BASIC") {
+     
+
+      const currentSub = await getSubscriptionUserWise(userId)
+
+      if (!currentSub) {
+        return res.status(404).json({ message: "Subscription not found" });
+      }
+
+      const creditsToAdd = 150; // BASIC plan mein 150 credits
+      const rechargeAmount = 250;
+      const activationAmount = 50;
+
+      const newTotalCredits = currentSub.totalCredits + creditsToAdd;
+      const newRemainingCredits = currentSub.remainingCredits + creditsToAdd;
+      const newTotalAmount =
+        Number(currentSub.totalAmount ) + rechargeAmount + activationAmount;
+
+      const result = await createPaymentAndCredit(userId, {
+        subscriptionStatus: true,
+        plan: "BASIC",
+        startDate: now,
+        endDate: endDate,
+        totalCredits: newTotalCredits,
+        usedCredits: currentSub.usedCredits,
+        remainingCredits: newRemainingCredits,
+        totalAmount: newTotalAmount,
+
+        payments: [
+          {
+            amount: activationAmount,
+            paymentFlow: "IN",
+            paymentType: "ACTIVATION_CHARGE",
+            paymentStatus: "SUCCESS",
+            paymentMedium: paymentMedium || "UPI",
+          },
+          {
+            amount: rechargeAmount,
+            paymentFlow: "IN",
+            paymentType: "RECHARGE",
+            paymentStatus: "SUCCESS",
+            paymentMedium: paymentMedium || "UPI",
+          },
+        ],
+
+        credits: [
+          {
+            creditCount: creditsToAdd,
+            creditFlow: "IN",
+            creditType: "USER_RECHARGE",
+            balanceBefore: currentSub.remainingCredits,
+            balanceAfter: newRemainingCredits,
+          },
+        ],
+      });
+
+      logger.info("Basic plan activated", {
+        type: "BASIC_PLAN_ACTIVATED",
+        userId,
+        action: "handleSubscription",
+        details: {
+          creditsAdded: creditsToAdd,
+          totalAmount: newTotalAmount,
+        },
+      });
+
+      return res.status(200).json({
+        message: "Basic plan activated successfully",
+        data: result,
+      });
+    }
+
+    return res.status(400).json({ message: "Invalid plan type" });
+  } catch (error: any) {
+    console.error(error)
+    logger.error("Subscription handler failed", {
+      type: "SUBSCRIPTION_ERROR",
+      action: "handleSubscription",
+      error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      message: "Error processing subscription",
+      error: error.message,
+    });
+  }
+};
 
 export const userWiseCreditController = async (req: any, res: any) => {
     try {

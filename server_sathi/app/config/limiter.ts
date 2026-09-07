@@ -1,9 +1,12 @@
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis"
-import { redisClient } from "../service/queue/gmailQueueExtracter.js";
+import { connection2 } from "../service/queue/gmailQueueExtracter.js";
+import {Redis} from "ioredis"
 
+const client = new Redis(process.env?.REDIS_URL!)
 const store = (prefix: any) => new RedisStore({
-  sendCommand: (...args) => redisClient.sendCommand(args),
+  sendCommand: ((...args: string[]) =>
+  client.call(...(args as [string, ...string[]]))) as any,
   prefix
 })
 

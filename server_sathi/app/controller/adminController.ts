@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
-import { createAdmin } from "../model/admin.js";
+import { createAdmin, getUserSubscriptionDetail, getUsersWithSubscription } from "../model/admin.js";
 import logger from "../utils/logger.js";
 import { getUserByMail } from "../model/user.js";
 import { issueTokens } from "./refresherController.js";
 import crypto from "crypto";
+
 
 export const createAdminController = async (req: any, res: any) => {
     try {
@@ -21,6 +22,7 @@ export const createAdminController = async (req: any, res: any) => {
         });
         return res.status(200).json({ message: "Admin created successfully", data });
     } catch (error) {
+        console.error(error)
         logger.error("Failed to register admin", {
             type: "ADMIN_CREATED",
             action: "createController",
@@ -47,14 +49,17 @@ export const loggedIn = async (req: any, res: any) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        const acessToken = await issueTokens(res, getUser, crypto.randomUUID(), req);
+        const accessToken = await issueTokens(res, getUser, crypto.randomUUID(), req);
         logger.info("Admin logged in successfully", {
             type: "ADMIN_LOGGED_IN",
             email: email,
             action: "loggedIn"
         });
-        return res.status(200).json({ message: "Admin logged in successfully", acessToken });
+        return res.status(200).json({ message: "Admin logged in successfully", 
+            accessToken, 
+            user: {...getUser, isAdmin: getUser.userChild?.isAdmin} });
     } catch (error) {
+           console.error(error)
         logger.error("Failed to log in admin", {
             type: "ADMIN_LOGGED_IN",
             action: "loggedIn",
@@ -64,3 +69,103 @@ export const loggedIn = async (req: any, res: any) => {
         res.status(500).json({ message: "Error logging in admin" });
     }
 }
+
+
+// GET /admin/users?page=1&limit=10&search=john&status=active
+export const getUsers = async (req: any, res: any) => {
+  try {
+    const page: number = Math.max(1, parseInt(req.query.page) || 1) ;
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const search = req.query.search as string | undefined;
+    const status = req.query.status as "active" | "inactive" | "expiring" | undefined;
+
+    // Validate status
+    const validStatuses = ["active", "inactive", "expiring"];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid status. Use: ${validStatuses.join(", ")}`,
+      });
+    }
+     if(!req.user?.id && !req.user?.isAdmin){
+        return res.status(401).json({ message: "you are not authorized" });
+    }
+
+    const result = await getUsersWithSubscription({ page, limit, search, status });
+
+    logger.info("Admin fetched users list", {
+      type: "ADMIN_FETCH_USERS",
+      action: "getUsers",
+      details: {
+        page,
+        limit,
+        search: search || null,
+        status: status || null,
+        totalResults: result.pagination.totalUsers,
+      },
+    });
+
+    return res.status(200).json(result);
+  } catch (error: any) {
+    logger.error("Failed to fetch users", {
+      type: "ADMIN_FETCH_USERS_ERROR",
+      action: "getUsers",
+      error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      message: "Failed to fetch users",
+      error: error.message,
+    });
+  }
+};
+
+// GET /admin/users/:userId/subscription
+export const getUserSubscription = async (req: any, res: any) => {
+  try {
+    const { userId } = req.params;
+
+    if(!req.user?.id && !req.user.isAdmin){
+        return res.status(401).json({ message: "you are not authorized" });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const user = await getUserSubscriptionDetail(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    logger.info("Admin fetched user subscription detail", {
+      type: "ADMIN_FETCH_USER_SUB",
+      action: "getUserSubscription",
+      details: { userId },
+    });
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        userName: user.userName,
+        userEmail: user.userEmail,
+        userPhone: user.userMobileNumber,
+        createdAt: user.createdAt,
+      },
+      subscription: user.subscriptions || null,
+    });
+  } catch (error: any) {
+    logger.error("Failed to fetch user subscription", {
+      type: "ADMIN_FETCH_USER_SUB_ERROR",
+      action: "getUserSubscription",
+      error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      message: "Failed to fetch subscription details",
+      error: error.message,
+    });
+  }
+};

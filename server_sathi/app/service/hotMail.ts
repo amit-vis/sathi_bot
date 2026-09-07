@@ -102,7 +102,7 @@ export const Subscription = async (accessToken: string) => {
         notificationUrl: "https://annmarie-nonextractable-mathematically.ngrok-free.dev/app/hotmail/notification",
         resource: "me/mailFolders('Inbox')/messages",
         expirationDateTime: newExpiration.toISOString(),
-        clientState: "sathi_bot_secret",
+        clientState: "BizNest_bot_secret",
     }, {
         headers: {
             "Authorization": `Bearer ${accessToken}`
@@ -194,7 +194,8 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
 
                 await sendOTPackGmailQueue.add("onboard-mail", {
                     type: "onboard",
-                    to: UserInfo?.email
+                    to: UserInfo?.email,
+                    userName: UserInfo?.name
                 }, { priority: 10 });
                 
                 logger.info("New Outlook user onboarded successfully", {
@@ -597,7 +598,7 @@ export const mailAccessRealTimeOutlook = async (userEmail: string) => {
                 notificationUrl: process.env.OUTLOOK_WEBHOOK_URL!,   // tumhara public endpoint
                 resource: "me/mailFolders('Inbox')/messages",
                 expirationDateTime: expiration.toISOString(),
-                clientState: "sathi_bot_secret",                     // webhook verify karne ke liye
+                clientState: "BizNest_bot_secret",                     // webhook verify karne ke liye
             },
             {
                 headers: {
@@ -817,7 +818,7 @@ export const notification = async (req: any, res: any) => {
 
         for (const notifi of notifications) {
             // clientState verify karo (tamper protection)
-            if (notifi.clientState !== "sathi_bot_secret") {
+            if (notifi.clientState !== "BizNest_bot_secret") {
                 logger.warn("Invalid clientState in webhook notification", {
                     type: "OUTLOOK_WEBHOOK",
                     action: "notification"

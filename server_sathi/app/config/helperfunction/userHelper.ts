@@ -38,13 +38,22 @@ export const buildWhere = (identifier: string) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   if (emailRegex.test(identifier)) {
-    return { userEmail: identifier };
+    return { userEmail: identifier,
+            isBlocked: false,
+            isDelete: false
+     };
   }
   if (uuidRegex.test(identifier)) {
-    return { id: identifier };
+    return { id: identifier,
+      isBlocked: false,
+            isDelete: false
+     };
   }
   // baaki sab ko phone number maano
-  return { userMobileNumber: identifier };
+  return { userMobileNumber: identifier,
+    isBlocked: false,
+    isDelete: false
+   };
 };
 
 export const PinGenerator = ()=>{
