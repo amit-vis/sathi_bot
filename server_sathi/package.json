@@ -54,7 +54,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node app/index.ts",
+    "start": "node app/index.js",
     "dev": "npx prisma generate && tsx watch app/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
