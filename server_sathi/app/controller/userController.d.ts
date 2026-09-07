@@ -1,0 +1,13 @@
+export declare const createController: (req: any, res: any) => Promise<any>;
+export declare const sendOtpTouser: (req: any, res: any) => Promise<any>;
+export declare const veriFyOTP: (req: any, res: any) => Promise<any>;
+export declare const logout: (req: any, res: any) => Promise<any>;
+export declare const logoutAll: (req: any, res: any) => Promise<any>;
+export declare const sessions: (req: any, res: any) => Promise<any>;
+export declare const deleteSession: (req: any, res: any) => Promise<any>;
+export declare const userDetailsUpdateController: (req: any, res: any) => Promise<any>;
+export declare const deleteUserController: (req: any, res: any) => Promise<any>;
+export declare const deactivateUserController: (req: any, res: any) => Promise<any>;
+export declare const reactiveUserController: (req: any, res: any) => Promise<any>;
+export declare const recoverUserController: (req: any, res: any) => Promise<any>;
+//# sourceMappingURL=userController.d.ts.map
