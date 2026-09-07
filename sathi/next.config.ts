@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['rewrite-skeleton-petri.ngrok-free.dev',
-    "http://localhost:5000","http://localhost:3000",
-    "https://stability-bracelets-better-understand.trycloudflare.com"]
+    "http://localhost:5000","http://localhost:3000","https://sathi-bot.vercel.app/",
+    "https://stability-bracelets-better-understand.trycloudflare.com", "https://sathi-bot.onrender.com"]
 };
 
 export default nextConfig;
