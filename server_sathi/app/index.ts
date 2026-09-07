@@ -1,3 +1,5 @@
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
 import "dotenv/config"
 import express from "express";
 import routes from "./routes/index.js"
@@ -6,6 +8,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
+
 
 
 const app = express();

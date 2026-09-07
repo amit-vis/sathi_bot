@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 
+
 const transporter = nodemailer.createTransport({
     service: 'gmail',
     host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
@@ -8,7 +9,7 @@ const transporter = nodemailer.createTransport({
     auth: {
         user: process.env.EMAIL_USER!,
         pass: process.env.PASSKEY!,
-    },
+    }
 });
 
 
