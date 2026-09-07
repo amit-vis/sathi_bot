@@ -70,7 +70,7 @@ export default function Sidebar({ activeType, onTypeChange }: SidebarProps) {
         {/* Header with Close button on mobile */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-line shrink-0">
           <h1 className="text-2xl font-bold text-ink tracking-wide">
-            Saathi<span className="text-primary">.</span>
+            BizNest<span className="text-primary">.</span>
           </h1>
           <button
             onClick={() => setIsOpen(false)}

@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import HeaderWithProfile from "../component/headerProfile";
 import { getUser } from "@/app/auth/store";
-import { documentUser } from "@/app/api/document";
+import { documentUser, downloadExcel } from "@/app/api/document";
 import Sidebar, { documentTypes } from "../component/Sidebar";
 import DocumentTable from "../component/DocumentTable";
 import Pagination from "../component/Pagination";
@@ -81,9 +81,37 @@ export default function DashboardPage() {
     router.push(`/dashboard/document/${documentId}`);
   };
 
-  const fetchDocument = async ()=>{
-    
+  const handleDownloadExcel = async () => {
+  try {
+    const params = new URLSearchParams();
+
+    if (activeType) {
+      params.append("documentType", activeType);
+    } else if (filters.documentType) {
+      params.append("documentType", filters.documentType);
+    }
+    if (filters.startDate) params.append("startDate", filters.startDate);
+    if (filters.endDate) params.append("endDate", filters.endDate);
+    if (filters.documentNumber) params.append("documentNumber", filters.documentNumber);
+
+    const res = await downloadExcel(params);
+
+    // Blob se file download trigger karo
+    const blob = new Blob([res.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `documents_${new Date().toISOString().split("T")[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Download failed:", error);
   }
+};
 
   return (
     <div className="flex h-screen w-full bg-base text-ink overflow-hidden font-sans">
@@ -96,16 +124,27 @@ export default function DashboardPage() {
 
         <div className="flex-1 overflow-y-auto p-8 bg-base">
           {/* Heading */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-ink">
-              {activeType
-                ? activeType === "other"
-                  ? "Other Documents"
-                  : documentTypes.find((d) => d.id === activeType)?.name + "s"
-                : "All Documents"}
-            </h2>
-            <span className="text-sm text-muted">Total: {pagination?.total}</span>
-          </div>
+         <div className="flex items-center justify-between mb-6">
+  <h2 className="text-2xl font-semibold text-ink">
+    {activeType
+      ? activeType === "other"
+        ? "Other Documents"
+        : documentTypes.find((d) => d.id === activeType)?.name + "s"
+      : "All Documents"}
+  </h2>
+  <div className="flex items-center gap-4">
+    <span className="text-sm text-muted">Total: {pagination?.total}</span>
+    {documents.length > 0 && (
+      <button
+        onClick={handleDownloadExcel}
+        className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all"
+      >
+        <DownloadIcon />
+        Download Excel
+      </button>
+    )}
+  </div>
+</div>
 
           {/* 👇 FilterBar — documentType dropdown sirf All Documents mein */}
           <FilterBar
@@ -137,5 +176,15 @@ export default function DashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
   );
 }

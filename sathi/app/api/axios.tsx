@@ -18,8 +18,6 @@ axiosInstance.interceptors.request.use((config) => {
   return config;
 });
 
-// response interceptor — 401 pe auto refresh
-// axios.tsx
 const publicPaths = ["/user/verifyOtp", "/user/login", "/user/signup"];
 
 axiosInstance.interceptors.response.use(
@@ -49,7 +47,11 @@ axiosInstance.interceptors.response.use(
       } catch (err) {
         setAccessToken(null);
         setUser(null);
-        window.location.href = '/login';
+        if (window.location.pathname.startsWith('/admin')) {
+          window.location.href = '/admin/login';
+        } else {
+          window.location.href = '/signin';
+        }
         return Promise.reject(err);
       }
     }

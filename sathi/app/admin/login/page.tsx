@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminloggedin } from "@/app/api/admin";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,22 +17,21 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Login failed");
-        return;
+      const res = await adminloggedin({email, password})
+      if (res.status === 200) {
+        setEmail("")
+        setPassword("")
+        if(res.data.user.isAdmin){
+          router.push("/admin/dashboard");
+        }else{
+          router.push("/dashboard")
+        }
+      
       }
+      setError(res.data.error || "Login failed");
+        return;
 
-      localStorage.setItem("accessToken", data.accessToken);
-      router.push("/");
+      
     } catch {
       setError("Something went wrong");
     } finally {

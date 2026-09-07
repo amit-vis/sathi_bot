@@ -17,6 +17,8 @@ export default function OtpPage() {
   // Timer States
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [canResend, setCanResend] = useState<boolean>(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Timer Logic
   useEffect(() => {
@@ -61,26 +63,44 @@ export default function OtpPage() {
   const isComplete = otp.every((d) => d !== "");
   
   const handleVerify = async () => {
+    setError("");
+    setLoading(true);
     try {
       const otpnew = otp.join("");
       const result = await verifyOTP(otpnew, email);
-      console.log("verify result:", result);     
-      console.log("cookies:", document.cookie);  
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("FAILED:", error);
+      if (result.data.user.isAdmin) {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "OTP verification failed. Please try again.";
+      setError(msg);
+      // wrong OTP ya expired ho toh boxes clear karo
+      setOtp(Array(6).fill(""));
+      inputsRef.current[0]?.focus();
+      setActiveIndex(0);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSendOtp = async () => {
-    if (!canResend) return; // Agar timer chal raha hai toh return kar do
-    
+    if (!canResend) return;
+    setError("");
     try {
       await signin(email);
-      setTimeLeft(60); // Timer wapas 60s par set karein
-      setCanResend(false); // Resend button wapas hide/disable karein
-    } catch (error) {
-      console.error("Failed to resend OTP:", error);
+      setTimeLeft(60);
+      setCanResend(false);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to resend OTP. Please try again.";
+      setError(msg);
     }
   };
 
@@ -119,11 +139,16 @@ export default function OtpPage() {
               inputMode="numeric"
               maxLength={1}
               value={digit}
-              onChange={(e) => handleChange(i, e.target.value)}
+               onChange={(e) => {
+                handleChange(i, e.target.value);
+                if (error) setError("");  // typing karte hi error hatao
+              }}
               onKeyDown={(e) => handleKeyDown(i, e)}
               onFocus={() => setActiveIndex(i)}
               className={`h-[clamp(52px,15vw,64px)] w-[clamp(44px,13vw,56px)] rounded-2xl border-2 bg-surface-2 text-center text-[22px] font-semibold text-ink outline-none transition-all ${
-                active
+                error
+                  ? "border-[#ea4335]"
+                  : active
                   ? "border-primary shadow-glow-violet"
                   : "border-line shadow-none"
               }`}
@@ -131,6 +156,10 @@ export default function OtpPage() {
           );
         })}
       </div>
+
+      {error && (
+        <p className="mt-3 text-center text-sm text-[#ea4335]">{error}</p>
+      )}
 
       {/* Resend & Timer Section */}
       <div className="mt-6 text-center h-6">
@@ -157,14 +186,14 @@ export default function OtpPage() {
       <div className="flex-1" />
       <button
         onClick={handleVerify}
-        disabled={!isComplete}
+        disabled={!isComplete || loading}
         className={`h-[58px] w-full rounded-full bg-primary text-[17px] font-semibold text-white transition-all ${
-          isComplete
+          isComplete && !loading
             ? "cursor-pointer opacity-100 shadow-glow-violet"
             : "cursor-not-allowed opacity-50 shadow-none"
         }`}
       >
-        Verify & Continue
+        {loading ? "Verifying..." : "Verify & Continue"}
       </button>
       <div className="h-6" />
     </Screen>

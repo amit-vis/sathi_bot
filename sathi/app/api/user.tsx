@@ -5,7 +5,7 @@ export const verifyOTP = async (otp: string, userEmail: string) => {
   const res = await axiosInstance.post(`/user/verifyOtp/${userEmail}`, { otp });
   setAccessToken(res.data?.accessToken);
   setUser(res.data?.user);
-  return res.data;
+  return res;
 };
 
 export const signin = async (mailId: string)=>{
@@ -13,7 +13,7 @@ export const signin = async (mailId: string)=>{
         identifier: mailId
     });
 
-    return res.data
+    return res
 }
 
 export const LogoutUser = async ()=>{
@@ -35,4 +35,14 @@ export const deleteSession = async (familyId: string)=>{
 export const updateUserPersonalDetails = async (userDetails: any)=>{
   const res = await axiosInstance.patch(`/user/userDetailsUpdateController`, userDetails);
   return res.data
+}
+
+export const deleteUser = async (deleteInput: string)=>{
+  const res = await axiosInstance.post(`/user/deleteUserController`,{deleteInputText: deleteInput});
+  return res
+}
+
+export const deactivateUser = async (reason: string)=>{
+  const res = await axiosInstance.post(`/user/deactivateUserController`,{reason: reason});
+  return res
 }

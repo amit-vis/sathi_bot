@@ -7,7 +7,7 @@ export function Wordmark({ size = "lg" }: { size?: "lg" | "sm" }) {
     <h1
       className={`text-center font-medium tracking-tight text-ink ${sizeClass} [text-shadow:0_0_22px_rgba(124,92,252,0.75)]`}
     >
-      Saathi
+      BizNest
     </h1>
   );
 }

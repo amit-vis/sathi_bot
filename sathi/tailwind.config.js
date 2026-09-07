@@ -9,7 +9,7 @@ const config = {
   ],
   theme: {
     extend: {
-      // Saathi brand colors — className me seedha use karo, e.g. bg-primary, text-muted
+      // BizNest brand colors — className me seedha use karo, e.g. bg-primary, text-muted
       colors: {
         base: "#0E1116",       // background base
         "base-top": "#141826", // gradient top shade

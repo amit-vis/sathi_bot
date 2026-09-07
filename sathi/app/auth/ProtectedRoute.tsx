@@ -1,4 +1,3 @@
-// components/ProtectedRoute.tsx — logged in users ke liye
 "use client";
 import { useAuth } from "./provider";
 import { useRouter } from "next/navigation";
@@ -9,9 +8,14 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) router.replace("/login");
+    if (!user) {
+      router.replace("/signin");
+    } else if (user.isAdmin) {
+      // admin user pages access nahi kar sakta
+      router.replace("/admin/dashboard");
+    }
   }, [user, router]);
 
-  if (!user) return null;
+  if (!user || user.isAdmin) return null;
   return <>{children}</>;
 }
