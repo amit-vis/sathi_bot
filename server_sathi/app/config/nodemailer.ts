@@ -1,33 +1,19 @@
-import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first'); 
 
-import nodemailer from 'nodemailer';
+import {Resend} from "resend"
 
 
-const transporter = nodemailer.createTransport({
-  
-    host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
-    port: 587,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER!,
-        pass: process.env.PASSKEY!,
-    },
-    family: 4,
-} as any);
 
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 const sendMail = async (from: string, to: string, subject: string, text: string, html: string) => {
-    const mailOptions = {
-        from,
-        to,
-        subject,
-        text,
-        html,
-    };
-
     try {
-        await transporter.sendMail(mailOptions);
+        await resend.emails.send({
+            from,   // "BizNest <noreply@yourdomain.com>"
+            to,
+            subject,
+            text: text || undefined,
+            html: html || undefined,
+        } as any);
         console.log('Email sent successfully');
     } catch (error) {
         console.error('Error sending email:', error);

@@ -1,5 +1,4 @@
-import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first');
+
 import { Queue, Worker, Job } from "bullmq";
 import { createClient } from "redis";
 import {Redis} from "ioredis";
