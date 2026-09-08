@@ -4,26 +4,26 @@ dns.setDefaultResultOrder('ipv4first');
 import nodemailer from 'nodemailer';
 
 
-// const transporter = nodemailer.createTransport({
-//     service: 'gmail',
-//     host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
-//     port: 2525,
-//     secure: false,
-//     auth: {
-//         user: process.env.EMAIL_USER!,
-//         pass: process.env.PASSKEY!,
-//     },
-//     family: 4,
-// } as any);
 const transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net',
-  port: 2525,
-  auth: {
-    user: 'apikey',
-    pass: process.env.SENDGRID_KEY,
-  },
-  tls: { rejectUnauthorized: false }
-});
+    // service: 'gmail',
+    host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
+    port: 2525,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USER!,
+        pass: process.env.PASSKEY!,
+    },
+    family: 4,
+} as any);
+// const transporter = nodemailer.createTransport({
+//   host: 'smtp.sendgrid.net',
+//   port: 2525,
+//   auth: {
+//     user: 'apikey',
+//     pass: process.env.SENDGRID_KEY,
+//   },
+//   tls: { rejectUnauthorized: false }
+// });
 
 const sendMail = async (from: string, to: string, subject: string, text: string, html: string) => {
     const mailOptions = {
