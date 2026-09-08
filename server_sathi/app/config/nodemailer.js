@@ -94,7 +94,7 @@ const sendOTPResponse = async (to, otp) => {
 </body>
 </html>
         `;
-        await sendMail(process.env.EMAIL_USER, to, subject, "", htmlContent);
+        await sendMail("BizNest <onboarding@resend.dev>", to, subject, "", htmlContent);
     }
     catch (error) {
         console.error('Error sending query response email:', error);
@@ -174,7 +174,7 @@ const onboardMail = async (to, userName) => {
     </table>
 </body>
 </html>`;
-        await sendMail(process.env.EMAIL_USER, to, subject, "", htmlContent);
+        await sendMail("BizNest <onboarding@resend.dev>", to, subject, "", htmlContent);
     }
     catch (error) {
         console.error('Error sending acknowledgment email:', error);
@@ -319,7 +319,7 @@ const accountDeleteMail = async (to, userName) => {
     </table>
 </body>
 </html>`;
-        await sendMail(process.env.EMAIL_USER, to, subject, "", htmlContent);
+        await sendMail("BizNest <onboarding@resend.dev>", to, subject, "", htmlContent);
     }
     catch (error) {
         console.error("Error sending account deletion email:", error);
