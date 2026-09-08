@@ -1,13 +1,12 @@
 import nodemailer from 'nodemailer';
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
-    port: 465,
-    secure: true,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.PASSKEY,
-    },
+  host: 'smtp.sendgrid.net',
+  port: 2525,
+  auth: {
+    user: 'apikey',
+    pass: process.env.SENDGRID_KEY,
+  },
+  tls: { rejectUnauthorized: false }
 });
 const sendMail = async (from, to, subject, text, html) => {
     const mailOptions = {
@@ -94,7 +93,7 @@ const sendOTPResponse = async (to, otp) => {
 </body>
 </html>
         `;
-        await sendMail("BizNest <onboarding@resend.dev>", to, subject, "", htmlContent);
+        await sendMail(process.env.EMAIL_USER, to, subject, "", htmlContent);
     }
     catch (error) {
         console.error('Error sending query response email:', error);
@@ -174,7 +173,7 @@ const onboardMail = async (to, userName) => {
     </table>
 </body>
 </html>`;
-        await sendMail("BizNest <onboarding@resend.dev>", to, subject, "", htmlContent);
+        await sendMail(process.env.EMAIL_USER, to, subject, "", htmlContent);
     }
     catch (error) {
         console.error('Error sending acknowledgment email:', error);
@@ -319,7 +318,7 @@ const accountDeleteMail = async (to, userName) => {
     </table>
 </body>
 </html>`;
-        await sendMail("BizNest <onboarding@resend.dev>", to, subject, "", htmlContent);
+        await sendMail(process.env.EMAIL_USER, to, subject, "", htmlContent);
     }
     catch (error) {
         console.error("Error sending account deletion email:", error);
