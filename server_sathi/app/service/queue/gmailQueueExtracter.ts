@@ -191,4 +191,4 @@ new Worker("extracted_data", async (job: any) => {
     connection:connection2 as any
 })
 
-await connection2.connect();
+
