@@ -1,6 +1,5 @@
 import rateLimit from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis"
-import { connection2 } from "../service/queue/gmailQueueExtracter.js";
 import {Redis} from "ioredis"
 
 const client = new Redis(process.env?.REDIS_URL!)

@@ -17,6 +17,7 @@ const port = 5000;
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}))
+app.use(helmet());
 app.use(cors({
     origin:["https://annmarie-nonextractable-mathematically.ngrok-free.dev", 
         "http://localhost:3000",
@@ -28,7 +29,6 @@ app.use(cors({
 
 app.use(cookieParser(process.env.SECRET_KEY))
 
-app.use(helmet());
 export const activityLoggerMiddleware = (req: any, res: any, next: any) => {
   // Jab response bheja ja chuka ho, tab log karenge taaki status code bhi mil jaye
   res.on('finish', () => {
