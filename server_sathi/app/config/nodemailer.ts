@@ -3,18 +3,15 @@ dns.setDefaultResultOrder('ipv4first');
 
 import nodemailer from 'nodemailer';
 
-
 const transporter = nodemailer.createTransport({
-    // service: 'gmail',
-    host: 'smtp.gmail.com', // Optional: host aur port define karna stable rehta hai
+    host: 'mail.smtp2go.com',
     port: 2525,
     secure: false,
     auth: {
-        user: process.env.EMAIL_USER!,
-        pass: process.env.PASSKEY!,
+        user: process.env.SMTP2GO_USER,  // SMTP username (email jaisa hota hai)
+        pass: process.env.SMTP2GO_PASS,  // SMTP password ya API key
     },
-    family: 4,
-} as any);
+});
 // const transporter = nodemailer.createTransport({
 //   host: 'smtp.sendgrid.net',
 //   port: 2525,
