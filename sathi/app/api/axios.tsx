@@ -1,12 +1,12 @@
 import axios from "axios";
 import { getAccessToken, setAccessToken, setUser } from "../auth/store";
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
+// const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const axiosInstance = axios.create({
-  baseURL: baseURL,
-  withCredentials: false,
-  timeout: 0
+    baseURL: "/api/proxy",   // ← ye change
+    withCredentials: false,
+    timeout: 0
 });
 
 // request interceptor — har request mein token lagao
