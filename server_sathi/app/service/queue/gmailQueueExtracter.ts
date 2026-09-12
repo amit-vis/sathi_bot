@@ -172,6 +172,8 @@ new Worker("extracted_data", async (job: any) => {
             })
 
             await markAsProcessed(accessToekn, [mail.messageId], job.data.emailAddress);
+            console.log(` LLM Processed: ${verdict.data.type} - ${verdict.data.confidence_score}-${verdict.data.isBusiness}`, verdict._meta);
+
             logger.info("Successfully extracted and processed email", {
                 type: "WORKER_EXTRACTION",
                 messageId: mail.messageId,
