@@ -661,7 +661,7 @@ export const mailaccesRealTime = async (userEmail: string) => {
             `https://www.googleapis.com/gmail/v1/users/me/watch`,
             {
                 labelIds: ["INBOX"],
-                topicName: "projects/project-4d61adc1-429a-40ef-bfe/topics/BizNest_bot_automation"
+                topicName: "projects/project-4d61adc1-429a-40ef-bfe/topics/sathi_bot_automation"
             },
             {
                 headers: {

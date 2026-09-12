@@ -5,7 +5,7 @@ const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export const axiosInstance = axios.create({
   baseURL: baseURL,
-  withCredentials: true,
+  withCredentials: false,
   timeout: 0
 });
 
@@ -38,7 +38,7 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const { data } = await axios.post(
-          `${baseURL}/user/refresh`, {}, { withCredentials: true }
+          `/api/refresh`, {}
         );
         setAccessToken(data.accessToken);
         setUser(data.user);
@@ -63,8 +63,9 @@ axiosInstance.interceptors.response.use(
 export const initAuth = async () => {
   try {
     const { data } = await axios.post(
-      `${baseURL}/user/refresh`, {}, { withCredentials: true }
+      `/api/refresh`, {}
     );
+    console.log("REFRESH RESPONSE:", data);
     setAccessToken(data.accessToken);
     setUser(data.user);
   } catch {

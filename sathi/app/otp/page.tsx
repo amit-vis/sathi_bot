@@ -69,9 +69,9 @@ export default function OtpPage() {
       const otpnew = otp.join("");
       const result = await verifyOTP(otpnew, email);
       if (result.data.user.isAdmin) {
-        router.push("/admin/dashboard");
+        window.location.href = "/admin/dashboard"; 
       } else {
-        router.push("/dashboard");
+        window.location.href = "/dashboard"; 
       }
     } catch (err: any) {
       const msg =
