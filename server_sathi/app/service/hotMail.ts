@@ -145,8 +145,12 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
         let folderId = [];
         
         try {
+              console.log("STEP 1: Fetching user info...");
             UserInfo = await fetchUserInfoMicrosoft(msAccessToken);
+               console.log("STEP 2: User info fetched:", UserInfo?.email);
             user = await getUserByMail(UserInfo?.email);
+                console.log("STEP 3: User lookup done, exists:", !!user);
+
             const otp = sendOTP();
             const encryptOTP = await bcrypt.hashSync(otp, 10);
             const futeureMinute = 10 * 60 * 1000;
