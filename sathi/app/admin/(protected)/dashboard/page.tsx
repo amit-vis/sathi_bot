@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { axiosInstance } from "@/app/api/axios";
 import UpdateSubscriptionModal from "./modal/Updatesubscriptionmodal";
@@ -97,11 +97,12 @@ export default function UserListPage() {
     router.push(`/admin/dashboard/${userId}`);
   };
 
-  const getDaysLeft = (endDate: string | null) => {
-    if (!endDate) return null;
-    const diff = new Date(endDate).getTime() - Date.now();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
+const now = useMemo(() => Date.now(), []);
+const getDaysLeft = (endDate: string | null) => {
+  if (!endDate) return null;
+  const diff = new Date(endDate).getTime() - now;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
 
   const getPlanColor = (plan?: string) => {
     switch (plan) {

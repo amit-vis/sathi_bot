@@ -28,10 +28,7 @@ export default function DashboardPage() {
   });
 
   // Jab activeType change ho, filters reset karo aur fetch karo
-  useEffect(() => {
-    setFilters({});
-    fetchDocuments(1, {});
-  }, [activeType]);
+
 
   const fetchDocuments = useCallback(async (
     page: number,
@@ -71,6 +68,11 @@ export default function DashboardPage() {
       setLoading(false);
     }
   }, [activeType, filters, pagination.limit]);
+
+    useEffect(() => {
+    setFilters({});
+    fetchDocuments(1, {});
+  }, [activeType]);
 
   const handleFilterChange = (newFilters: typeof filters) => {
     setFilters(newFilters);

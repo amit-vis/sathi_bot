@@ -20,9 +20,6 @@ export default function DocumentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
-  useEffect(() => {
-    if (documentId) fetchDocument();
-  }, [documentId]);
 
   const fetchDocument = async () => {
     try {
@@ -36,6 +33,10 @@ export default function DocumentDetailPage() {
       setLoading(false);
     }
   };
+
+    useEffect(() => {
+    if (documentId) fetchDocument();
+  }, [documentId]);
 
   if (loading) {
     return (
