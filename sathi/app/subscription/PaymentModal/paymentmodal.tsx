@@ -39,7 +39,7 @@ export function PaymentModal({ plan, onClose }: { plan: any; onClose: () => void
   const handlePaymentConfirmation = () => {
     // Apna WhatsApp business number yahan daal dena
     const phoneNumber = "91XXXXXXXXXX"; 
-    const message = `Hi, I have completed the payment of ₹${plan.total} for the ${plan.name}. Please confirm my subscription.`;
+    const message = `Hi, I have completed the payment of ₹${plan.price} for the ${plan.name}. Please confirm my subscription.`;
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     
     window.open(whatsappUrl, "_blank");
@@ -66,11 +66,11 @@ export function PaymentModal({ plan, onClose }: { plan: any; onClose: () => void
           </div>
           <div className="flex justify-between text-sm text-muted pb-3 border-b border-line">
             <span>Taxes & Delivery</span>
-            <span>₹{plan.sub_price}</span>
+            <span>₹{plan.price}</span>
           </div>
           <div className="flex justify-between text-lg font-bold text-ink pt-1">
             <span>Total Amount</span>
-            <span>₹{plan.total}</span>
+            <span>₹{plan.price}</span>
           </div>
         </div>
 
