@@ -143,7 +143,17 @@ const SignUp = () => {
           Continue with Hotmail
         </a>
 
-
+{/* Hotmail button ke baad, "Already have an account?" se pehle */}
+<p className="mt-6 text-center text-[12px] text-muted leading-relaxed">
+  By signing up, you agree to our{" "}
+  <a href="/terms" target="_blank" className="text-primary underline">
+    Terms
+  </a>{" "}
+  and{" "}
+  <a href="/privacy" target="_blank" className="text-primary underline">
+    Privacy Policy
+  </a>
+</p>
         {/* Bottom link — mt-auto se neeche chala jaata hai */}
         <p className="mt-10 pb-4 text-center text-[15px] text-muted">
           Already have an account?{" "}
