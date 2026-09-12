@@ -23,6 +23,7 @@ export default function RootLayout({
       lang="en"
       className={poppins.variable}
     >
+      <meta name="google-site-verification" content="p-RSY2Cfn9T_GpX4GlHfdouWVLsZ3OdAQq5cSirD4ks" />
       <body >
         <AuthProvider>
     
