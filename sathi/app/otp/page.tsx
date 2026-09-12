@@ -16,26 +16,22 @@ export default function OtpPage() {
   
   // Timer States
   const [timeLeft, setTimeLeft] = useState<number>(60);
-  const [canResend, setCanResend] = useState<boolean>(false);
+
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Timer Logic
-  useEffect(() => {
-    // Agar time khatam ho gaya, toh interval rok do aur resend button enable kar do
-    if (timeLeft <= 0) {
-      setCanResend(true);
-      return;
-    }
-
-    // Har 1 second mein timeLeft ko 1 se kam karo
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
-    }, 1000);
-
-    // Cleanup function taaki multiple timers na start ho jayein
-    return () => clearInterval(timer);
-  }, [timeLeft]);
+useEffect(() => {
+  if (timeLeft <= 0) return;
+  const timer = setInterval(() => {
+    setTimeLeft((prev) => {
+      if (prev <= 1) return 0;
+      return prev - 1;
+    });
+  }, 1000);
+  return () => clearInterval(timer);
+}, [timeLeft]);
+const canResend = timeLeft <= 0;
 
   // Type karne pe next box pe focus
   const handleChange = (index: number, value: string) => {
@@ -94,7 +90,7 @@ export default function OtpPage() {
     try {
       await signin(email);
       setTimeLeft(60);
-      setCanResend(false);
+  
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
