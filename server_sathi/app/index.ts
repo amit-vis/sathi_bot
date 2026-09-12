@@ -28,7 +28,7 @@ app.use(cors({
     origin:["https://annmarie-nonextractable-mathematically.ngrok-free.dev", 
         "http://localhost:3000",
         "https://rewrite-skeleton-petri.ngrok-free.dev",
-    "https://stability-bracelets-better-understand.trycloudflare.com"],
+    "https://stability-bracelets-better-understand.trycloudflare.com", "https://sathi-bot.vercel.app"],
     methods: ["GET", "PUT", "POST", "PATCH", "DELETE"],
     credentials: true
 }));
