@@ -1,5 +1,5 @@
 {
-  "name": "sathi-bot",
+  "name": "sathi",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -28,5 +28,6 @@
     "postcss": "^8.5.25",
     "tailwindcss": "^4.3.3",
     "typescript": "^5"
-  }
+  },
+  "type": "module"
 }
