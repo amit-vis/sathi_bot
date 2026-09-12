@@ -7,7 +7,14 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import logger from "./utils/logger.js";
+import fs from "fs";
+import path from "path";
 
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+  const credPath = path.join("/tmp", "gcp-credentials.json");
+  fs.writeFileSync(credPath, process.env.GOOGLE_CREDENTIALS_JSON);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
+}
 
 
 const app = express();
