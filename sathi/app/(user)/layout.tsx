@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "../../global";
+import "../globals.css";
 import ProtectedRoute from "../auth/ProtectedRoute";
 
 
