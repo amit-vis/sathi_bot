@@ -18,12 +18,30 @@ export async function POST(req: NextRequest) {
     }
 
     const response = NextResponse.json(data);
+
+    // set-cookie header se naya rt parse karo
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) {
+        const rtMatch = setCookie.match(/rt=([^;]+)/);
+        if (rtMatch) {
+            const rtValue = decodeURIComponent(rtMatch[1]);
+            response.cookies.set("rt", rtValue, {
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: "lax",
+                maxAge: 7 * 86400,
+                path: "/",
+            });
+        }
+    }
+
+    // fallback — body se bhi check karo
     if (data.refreshToken) {
         response.cookies.set("rt", data.refreshToken, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? "lax" : "lax",
-            maxAge: 7 * 86_400_000,
+            sameSite: "lax",
+            maxAge: 7 * 86400,
             path: "/",
         });
     }
