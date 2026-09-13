@@ -176,11 +176,15 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
                     email: UserInfo?.email
                 });
             } else {
+                console.log("STEP 4: Creating subscription...");
                 const subscriptionId = await Subscription(msAccessToken);
+                console.log("STEP 5: Subscription created:", subscriptionId);
                 for (const label of folderNames) {
+                     console.log("STEP 6: Creating folder:", label);
                     const labelId = await createFolder(msAccessToken, label);
                     folderId.push(labelId);
                 }
+                console.log("STEP 7: All folders created");
                 user = await createUser({
                     userEmail: UserInfo?.email,
                     userName: UserInfo?.name,
@@ -226,6 +230,8 @@ export const callbackUrlMicrosoft = async (req: any, res: any) => {
 
         return res.redirect(`${process.env.FRONTEND_URL}/otp?email=${encodeURIComponent(UserInfo?.email)}`);
     } catch (error: any) {
+            console.error("FULL ERROR:", JSON.stringify(error?.response?.data, null, 2));
+
         logger.error("Outlook callback general error", {
             type: "USER_AUTH",
             action: "callbackUrlMicrosoft",
