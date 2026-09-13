@@ -116,8 +116,11 @@ const canResend = timeLeft <= 0;
         <h2 className="text-[clamp(28px,8vw,36px)] font-semibold text-ink">
           Verify OTP
         </h2>
-        <p className="mt-2 text-base text-muted">
+         <p className="mt-2 text-base text-muted">
           Enter the 6-digit code we sent you
+        </p>
+        <p className="mt-1 text-sm text-muted/70">
+          Don't see it? Check your spam or junk folder
         </p>
       </div>
 
