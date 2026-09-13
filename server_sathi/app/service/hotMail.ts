@@ -99,7 +99,7 @@ const newExpiration = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
 export const Subscription = async (accessToken: string) => {
     const resData = await axios.post(`https://graph.microsoft.com/v1.0/subscriptions`, {
         changeType: "created,updated",
-        notificationUrl: "https://annmarie-nonextractable-mathematically.ngrok-free.dev/app/hotmail/notification",
+        notificationUrl: "https://sathi-bot.onrender.com/app/hotmail/notification",
         resource: "me/mailFolders('Inbox')/messages",
         expirationDateTime: newExpiration.toISOString(),
         clientState: "BizNest_bot_secret",
