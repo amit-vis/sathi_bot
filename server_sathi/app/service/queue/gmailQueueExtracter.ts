@@ -191,7 +191,8 @@ new Worker("extracted_data", async (job: any) => {
 
 
 }, {
-    connection:connection2 as any
+    connection:connection2 as any,
+    drainDelay: 60
 })
 
 

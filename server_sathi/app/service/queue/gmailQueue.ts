@@ -31,6 +31,7 @@ const worker = new Worker(
   {
     connection: connection2 as any,
     concurrency: 5,
+    drainDelay: 60
   }
 );
 

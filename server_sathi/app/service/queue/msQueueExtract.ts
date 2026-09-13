@@ -166,5 +166,6 @@ new Worker("ms_extracted", async (job: any) => {
     }
 
 }, {
-    connection: connection2 as any
+    connection: connection2 as any,
+    drainDelay: 60
 })
