@@ -7,7 +7,12 @@ import * as XLSX from "xlsx";       // xlsx/xls/csv → text
 import { Buffer } from "buffer";
 import { HumanMessage } from "@langchain/core/messages";
 import { calculateCompleteness, extractTokenUsage } from "../config/helperfunction/helper.js";
+import TurndownService from "turndown";
+// @ts-ignore
+import { gfm } from "turndown-plugin-gfm";
 
+const turndownService = new TurndownService();
+turndownService.use(gfm);
 
 const llm = new ChatVertexAI({
   model: process.env.MODEL!,
@@ -480,10 +485,11 @@ const processAttachments = async (attachments: any[]): Promise<any[]> => {
         name.endsWith(".docx")
       ) {
         const buf = Buffer.from(b64, "base64");
-        const { value } = await mammoth.extractRawText({ buffer: buf });
+        const { value } = await mammoth.convertToHtml({ buffer: buf });
+        const markdownText = turndownService.turndown(value);
         blocks.push({
           type: "text",
-          text: `--- Attachment: ${att.filename} (Word document) ---\n${value}`,
+          text: `--- Attachment: ${att.filename} (Word document) ---\n${markdownText}`,
         });
       }
 
@@ -501,7 +507,15 @@ const processAttachments = async (attachments: any[]): Promise<any[]> => {
         let sheetText = "";
         for (const sheetName of wb.SheetNames) {
           sheetText += `\n[Sheet: ${sheetName}]\n`;
-          sheetText += XLSX.utils.sheet_to_csv(wb?.Sheets?.[sheetName]!);
+          const fullCsv = XLSX.utils.sheet_to_csv(wb?.Sheets?.[sheetName]!);
+
+          const lines = fullCsv.split('\n');
+          const maxRows = 150; // Set a safe limit
+          const truncatedCsv = lines.slice(0, maxRows).join('\n');
+          sheetText += truncatedCsv;
+          if (lines.length > maxRows) {
+             sheetText += `\n... [TRUNCATED: Showing only first ${maxRows} rows to save processing limit]`;
+          }
         }
         blocks.push({
           type: "text",
